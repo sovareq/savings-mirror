@@ -1,0 +1,29 @@
+[package]
+name = "caveman-dashboard"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+authors = ["Bjorn Lambrechts"]
+license = "MIT"
+description = "Brutalist savings dashboard for the caveman Claude Code skill. Optional sovacount integration."
+readme = "README.md"
+
+[[bin]]
+name = "caveman-dashboard"
+path = "src/main.rs"
+
+[dependencies]
+axum       = { version = "0.8", default-features = false, features = ["tokio", "http1", "json"] }
+tokio      = { version = "1", default-features = false, features = ["rt-multi-thread", "macros", "net", "fs", "io-util", "time"] }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+walkdir    = "2"
+chrono     = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+reqwest    = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+anyhow     = "1"
+
+[profile.release]
+strip       = true
+lto         = "thin"
+codegen-units = 1
+opt-level   = 3

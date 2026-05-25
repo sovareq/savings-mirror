@@ -1,8 +1,11 @@
-//! caveman-dashboard — local read-only savings tracker.
+//! savings-mirror — local read-only savings tracker.
 //!
-//! Serves a brutalist HTML dashboard on `127.0.0.1:8991` that visualises the
-//! USD savings reported by `caveman::build_report`. Optionally augments those
-//! figures with totals proxied (read-only) from SovaCount on `127.0.0.1:8989`.
+//! Serves a brutalist HTML dashboard that visualises the USD savings reported
+//! by `caveman::build_report`. Optionally augments those figures with totals
+//! proxied (read-only) from a local cost-endpoint on `127.0.0.1:8989`.
+//!
+//! Binds to the address in env-var `BIND_ADDR` (default `127.0.0.1:8991`).
+//! For LAN-access from a second machine, set `BIND_ADDR=0.0.0.0:8991`.
 //!
 //! All API endpoints return HTTP 200 even on failure, with `{"error": "..."}`
 //! in the body, so the frontend can degrade gracefully without 500-handling.
@@ -15,10 +18,10 @@ use serde_json::{Value, json};
 mod caveman;
 mod sovacount;
 
-const BIND_ADDR: &str = "127.0.0.1:8991";
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8991".to_string());
+
     let app = Router::new()
         .route("/", get(index))
         .route("/health", get(health))
@@ -26,8 +29,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/sovacount", get(api_sovacount))
         .route("/api/combined", get(api_combined));
 
-    let listener = tokio::net::TcpListener::bind(BIND_ADDR).await?;
-    eprintln!("caveman-dashboard listening on http://{BIND_ADDR}");
+    let listener = tokio::net::TcpListener::bind(&bind).await?;
+    eprintln!("savings-mirror listening on http://{bind}");
     axum::serve(listener, app).await?;
     Ok(())
 }

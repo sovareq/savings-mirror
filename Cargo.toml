@@ -1,15 +1,15 @@
 [package]
-name = "caveman-dashboard"
+name = "savings-mirror"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 authors = ["Bjorn Lambrechts"]
 license = "MIT"
-description = "Brutalist savings dashboard for the caveman Claude Code skill. Optional sovacount integration."
+description = "Local read-only savings tracker for AI tooling: aggregates caveman + sovacount cost reductions."
 readme = "README.md"
 
 [[bin]]
-name = "caveman-dashboard"
+name = "savings-mirror"
 path = "src/main.rs"
 
 [dependencies]

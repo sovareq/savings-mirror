@@ -41,7 +41,7 @@ claim on its own.
 ### macOS app (recommended)
 
 ```sh
-git clone https://codeberg.org/sovareq_bv/savings-mirror.git
+git clone https://codeberg.org/sovareq/savings-mirror.git
 cd savings-mirror
 ./scripts/build-app.sh           # produces ~/Desktop/SavingsMirror.app
 open ~/Desktop/SavingsMirror.app # menubar app, auto-starts the runtime
@@ -58,7 +58,7 @@ open http://127.0.0.1:8991
 ### From a release tarball
 
 Grab the latest `savings-mirror-<version>-<arch>.tar.gz` from the
-[releases page](https://codeberg.org/sovareq_bv/savings-mirror/releases),
+[releases page](https://codeberg.org/sovareq/savings-mirror/releases),
 extract, and run the binary.
 
 ---
@@ -168,7 +168,7 @@ body — frontend degrades gracefully without 500 handling.
 
 ## Companion tool: sovacount
 
-[sovacount](https://codeberg.org/sovareq_bv/sovacount) is a tier-router that
+[sovacount](https://codeberg.org/sovareq/sovacount) is a tier-router that
 sits in front of the Anthropic API and downgrades calls to Haiku/Sonnet where
 the user-facing quality budget allows. `savings-mirror` reads sovacount's
 `/cost` endpoint and folds those savings into the same dashboard.

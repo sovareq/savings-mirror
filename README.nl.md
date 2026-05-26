@@ -41,7 +41,7 @@ los kan beoordelen.
 ### macOS app (aanbevolen)
 
 ```sh
-git clone https://codeberg.org/sovareq_bv/savings-mirror.git
+git clone https://codeberg.org/sovareq/savings-mirror.git
 cd savings-mirror
 ./scripts/build-app.sh           # bouwt ~/Desktop/SavingsMirror.app
 open ~/Desktop/SavingsMirror.app # menubar-app, start runtime automatisch

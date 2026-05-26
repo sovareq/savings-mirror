@@ -12,10 +12,15 @@
 
 #![forbid(unsafe_code)]
 
-use axum::{Json, Router, response::Html, routing::get};
+use axum::{
+    Json, Router,
+    response::Html,
+    routing::{get, post},
+};
 use serde_json::{Value, json};
 
 mod caveman;
+mod mode_history;
 mod sovacount;
 
 #[tokio::main]
@@ -27,7 +32,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/api/caveman", get(api_caveman))
         .route("/api/sovacount", get(api_sovacount))
-        .route("/api/combined", get(api_combined));
+        .route("/api/combined", get(api_combined))
+        .route("/api/reset", post(api_reset));
 
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     eprintln!("savings-mirror listening on http://{bind}");
@@ -47,6 +53,23 @@ async fn api_caveman() -> Json<Value> {
     Json(match caveman::build_report() {
         Ok(r) => serde_json::to_value(r).unwrap_or_else(|e| json!({ "error": e.to_string() })),
         Err(e) => json!({ "error": e.to_string() }),
+    })
+}
+
+async fn api_reset() -> Json<Value> {
+    Json(match caveman::reset_baseline() {
+        Ok(ts) => {
+            // Mirror the wipe on the mode-history file so the per-mode bucket
+            // restarts from the same instant. Failure here is non-fatal: the
+            // baseline wipe already took effect.
+            let history_ok = mode_history::reset(ts).is_ok();
+            json!({
+                "ok":          true,
+                "baseline":    ts.to_rfc3339(),
+                "history_ok":  history_ok,
+            })
+        }
+        Err(e) => json!({ "ok": false, "error": e.to_string() }),
     })
 }
 
@@ -87,22 +110,49 @@ async fn api_combined() -> Json<Value> {
 
     let combined_v = match (&cav, &sov) {
         (Some(c), Some(s)) => {
+            // SovaCount's totals are pure tier-savings: it doesn't know about
+            // caveman compression. Combine them as such so the dashboard's
+            // "tier-winst" column sums both sources honestly.
             let calls = c.cumulative.calls + s.totals.count;
-            let baseline = c.cumulative.baseline_usd + s.totals.baseline_opus_usd;
             let actual = c.cumulative.actual_usd + s.totals.total_usd;
-            let savings = c.cumulative.savings_usd + s.totals.savings_usd;
-            let pct = if baseline > 0.0 {
-                (savings / baseline) * 100.0
+            let if_opus = c.cumulative.if_opus_usd + s.totals.baseline_opus_usd;
+            // No caveman compression on the SovaCount side, so its if-opus-no-
+            // caveman value equals its opus baseline.
+            let if_opus_nc = c.cumulative.if_opus_no_caveman_usd + s.totals.baseline_opus_usd;
+            let tier = c.cumulative.tier_savings_usd + s.totals.savings_usd;
+            let caveman = c.cumulative.caveman_savings_usd;
+            let total = tier + caveman;
+            let total_pct = if if_opus_nc > 0.0 {
+                (total / if_opus_nc) * 100.0
+            } else {
+                0.0
+            };
+            let tier_pct = if if_opus > 0.0 {
+                (tier / if_opus) * 100.0
+            } else {
+                0.0
+            };
+            let caveman_pct = if if_opus_nc > 0.0 {
+                (caveman / if_opus_nc) * 100.0
             } else {
                 0.0
             };
             json!({
-                "date":         "all sources",
-                "calls":        calls,
-                "baseline_usd": baseline,
-                "actual_usd":   actual,
-                "savings_usd":  savings,
-                "savings_pct":  pct,
+                "date":                   "all sources",
+                "calls":                  calls,
+                "actual_usd":             actual,
+                "if_opus_usd":            if_opus,
+                "if_opus_no_caveman_usd": if_opus_nc,
+                "tier_savings_usd":       tier,
+                "caveman_savings_usd":    caveman,
+                "total_savings_usd":      total,
+                "tier_savings_pct":       tier_pct,
+                "caveman_savings_pct":    caveman_pct,
+                "total_savings_pct":      total_pct,
+                // backwards-compat aliases:
+                "baseline_usd":           if_opus_nc,
+                "savings_usd":            total,
+                "savings_pct":            total_pct,
             })
         }
         _ => Value::Null,
@@ -116,17 +166,29 @@ async fn api_combined() -> Json<Value> {
 }
 
 fn tier_to_bucket(t: &sovacount::TierBucket, label: &str) -> Value {
+    // SovaCount is pure tier-savings (model-tier substitution). It has no
+    // notion of caveman compression, so caveman_savings is zero and the
+    // if-opus-no-caveman baseline collapses to the plain opus baseline.
     let pct = if t.baseline_opus_usd > 0.0 {
         (t.savings_usd / t.baseline_opus_usd) * 100.0
     } else {
         0.0
     };
     json!({
-        "date":         label,
-        "calls":        t.count,
-        "baseline_usd": t.baseline_opus_usd,
-        "actual_usd":   t.total_usd,
-        "savings_usd":  t.savings_usd,
-        "savings_pct":  pct,
+        "date":                   label,
+        "calls":                  t.count,
+        "actual_usd":             t.total_usd,
+        "if_opus_usd":            t.baseline_opus_usd,
+        "if_opus_no_caveman_usd": t.baseline_opus_usd,
+        "tier_savings_usd":       t.savings_usd,
+        "caveman_savings_usd":    0.0,
+        "total_savings_usd":      t.savings_usd,
+        "tier_savings_pct":       pct,
+        "caveman_savings_pct":    0.0,
+        "total_savings_pct":      pct,
+        // backwards-compat aliases:
+        "baseline_usd":           t.baseline_opus_usd,
+        "savings_usd":            t.savings_usd,
+        "savings_pct":            pct,
     })
 }

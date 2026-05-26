@@ -1,74 +1,457 @@
 <!doctype html>
-<html><head>
+<html lang="nl" dir="ltr" translate="no" class="notranslate"><head>
 <meta charset="utf-8">
-<title>caveman-dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>caveman — besparingsdashboard</title>
+<meta name="google" content="notranslate">
+<meta name="google-translate-customization" content="false">
+<meta http-equiv="content-language" content="nl">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13px;line-height:1.5;background:#fff;color:#000;padding:24px;max-width:780px}
-  @media (prefers-color-scheme:dark){body{background:#000;color:#fff}}
-  h1{font-size:13px;font-weight:600;margin-bottom:24px;border-bottom:1px solid currentColor;padding-bottom:8px}
-  h1 .dot{display:inline-block;width:8px;height:8px;background:#0a0;border-radius:50%;margin-right:6px;vertical-align:middle}
-  section{margin-bottom:24px}
-  section h2{font-size:13px;font-weight:600;margin-bottom:8px;text-transform:lowercase}
-  table{width:100%;border-collapse:collapse}
-  td,th{text-align:left;padding:2px 8px 2px 0;vertical-align:top}
-  td.num{font-variant-numeric:tabular-nums;text-align:right}
-  .muted{opacity:0.5}
-  .sep{border-top:1px dashed currentColor;margin:16px 0}
-  button{font:inherit;color:inherit;background:transparent;border:1px solid currentColor;padding:4px 8px;cursor:pointer}
-  button:hover{background:currentColor;color:#fff}
-  @media (prefers-color-scheme:dark){button:hover{color:#000}}
-  button.off{opacity:0.4}
-  button:disabled{cursor:not-allowed;opacity:0.3}
-  a{color:inherit}
-</style>
-</head><body>
+  :root {
+    --color-ink:           #2b1c10;
+    --color-ink-muted:     #5c4a36;
+    --color-ink-subtle:    #897560;
+    --color-surface:       #fffaf0;
+    --color-surface-muted: #f5ead5;
+    --color-surface-sunken:#ece0c8;
+    --color-surface-subtle:#faf4e3;
+    --color-border:        #d4c2a0;
+    --color-border-strong: #b89c70;
+    --color-accent:        #7a4e2d;
+    --color-accent-hover:  #5c3a22;
+    --color-accent-soft:   #a06e44;
+    --color-focus:         var(--color-accent);
+    --color-danger:        #a0522d;
+    --color-success:       #6b8e23;
 
-<h1><span class="dot"></span>caveman-dashboard &middot; <span class="muted" id="status">loading</span></h1>
+    --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --text-xs:   12px;
+    --text-sm:   14px;
+    --text-base: 16px;
+    --text-lg:   18px;
+    --text-2xl:  28px;
+    --text-3xl:  36px;
+
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-5:  20px;
+    --space-6:  24px;
+    --space-8:  32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    --border-thin: 1px solid var(--color-border);
+    --border-strong: 1px solid var(--color-border-strong);
+
+    --container-max: 960px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-ink:           #f3e9d2;
+      --color-ink-muted:     #c2b395;
+      --color-ink-subtle:    #8f8068;
+      --color-surface:       #1a130b;
+      --color-surface-muted: #221911;
+      --color-surface-sunken:#0f0a05;
+      --color-surface-subtle:#241a10;
+      --color-border:        #3a2c1c;
+      --color-border-strong: #5c4628;
+      --color-accent:        #c89870;
+      --color-accent-hover:  #e0b48a;
+      --color-accent-soft:   #a07a50;
+      --color-danger:        #d97a4c;
+      --color-success:       #9bb56a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    padding: var(--space-8) var(--space-6);
+    max-width: var(--container-max);
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-bottom: var(--space-5);
+    border-bottom: var(--border-thin);
+    margin-bottom: var(--space-8);
+  }
+
+  header h1 {
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  header .meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-ink-muted);
+  }
+
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-success);
+  }
+  .dot.err  { background: var(--color-danger); }
+  .dot.idle { background: var(--color-ink-subtle); }
+
+  section {
+    background: var(--color-surface-muted);
+    border: var(--border-thin);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+  }
+
+  section h2 {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin: 0 0 var(--space-4) 0;
+    color: var(--color-accent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  th, td {
+    text-align: left;
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    vertical-align: middle;
+  }
+
+  thead th {
+    font-weight: 600;
+    color: var(--color-ink-muted);
+    border-bottom: var(--border-thin);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+  }
+
+  tbody tr + tr td {
+    border-top: 1px dashed var(--color-border);
+  }
+
+  td.label {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--color-ink);
+    width: 16%;
+  }
+
+  td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+
+  td.num.savings {
+    color: var(--color-success);
+    font-weight: 600;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-4);
+  }
+
+  button {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-accent);
+    background: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  button:hover {
+    background: var(--color-accent);
+    color: var(--color-surface);
+  }
+  button.danger {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+  button.danger:hover {
+    background: var(--color-danger);
+    color: var(--color-surface);
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .note {
+    font-size: var(--text-sm);
+    color: var(--color-ink-muted);
+  }
+
+  .baseline-info {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-ink-subtle);
+    background: var(--color-surface-sunken);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  footer {
+    margin-top: var(--space-10);
+    padding-top: var(--space-5);
+    border-top: var(--border-thin);
+    font-size: var(--text-xs);
+    color: var(--color-ink-subtle);
+    text-align: center;
+  }
+
+  footer a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  footer a:hover {
+    text-decoration: underline;
+  }
+
+  /* Visibility is purely state-driven through body data-attrs so the
+     interval refresh can never overwrite a click-toggle's setting. */
+  body:not([data-show-sova="true"]) #sovacount-section,
+  body:not([data-show-sova="true"]) #combined-section {
+    display: none;
+  }
+  body[data-sovacount-down="true"] #toggle {
+    pointer-events: none;
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+</style>
+</head><body data-show-sova="false" data-sovacount-down="false">
+
+<header>
+  <h1><span translate="no" class="notranslate">caveman</span></h1>
+  <div class="meta">
+    <span class="dot idle" id="status-dot"></span>
+    <span id="status">laden…</span>
+    <span class="baseline-info" id="baseline">basislijn: …</span>
+  </div>
+</header>
 
 <section id="caveman-section">
-  <h2>caveman</h2>
-  <table id="caveman-table"></table>
+  <h2><span translate="no" class="notranslate">caveman</span>-besparing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>periode</th>
+        <th class="num">oproepen</th>
+        <th class="num">opus-baseline</th>
+        <th class="num">werkelijk</th>
+        <th class="num">tier-winst</th>
+        <th class="num">caveman-winst</th>
+        <th class="num">totaal-winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="caveman-table"></tbody>
+  </table>
+  <p class="note" translate="no">
+    tier-winst = real-gemeten (opus-prijs × tokens − werkelijke prijs × tokens).
+    caveman-winst = schatting via mode-benchmark + lengte-heuristiek (clamp 20–85%).
+    totaal = som beide. echte caveman-meting vereist controle-run zonder
+    <span translate="no" class="notranslate">caveman</span>.
+  </p>
 </section>
 
-<section id="sovacount-section" style="display:none">
-  <h2>+ sovacount</h2>
-  <table id="sovacount-table"></table>
+<section id="sovacount-section">
+  <h2><span translate="no" class="notranslate">sovacount</span>-besparing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>periode</th>
+        <th class="num">oproepen</th>
+        <th class="num">opus-baseline</th>
+        <th class="num">werkelijk</th>
+        <th class="num">tier-winst</th>
+        <th class="num">caveman-winst</th>
+        <th class="num">totaal-winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="sovacount-table"></tbody>
+  </table>
 </section>
 
-<section id="combined-section" style="display:none">
-  <h2>combined</h2>
-  <table id="combined-table"></table>
+<section id="combined-section">
+  <h2>samen</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>bron</th>
+        <th class="num">oproepen</th>
+        <th class="num">opus-baseline</th>
+        <th class="num">werkelijk</th>
+        <th class="num">tier-winst</th>
+        <th class="num">caveman-winst</th>
+        <th class="num">totaal-winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="combined-table"></tbody>
+  </table>
 </section>
 
-<div class="sep"></div>
+<section id="modes-section">
+  <h2>verdeling per modus</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>modus</th>
+        <th class="num">oproepen</th>
+        <th class="num">winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="modes-table"></tbody>
+  </table>
+  <p class="note" id="modes-empty" style="display:none">
+    geen modus-historiek nog &mdash; eerste prompt na deze build wordt geregistreerd.
+  </p>
+</section>
 
-<button id="toggle" class="off">+ show sovacount</button>
-<span class="muted" style="margin-left:12px" id="sovacount-status"></span>
+<div class="toolbar">
+  <button id="toggle" translate="no" class="notranslate">+ toon sovacount</button>
+  <button id="wipe" class="danger notranslate" translate="no">wis caveman-cache</button>
+  <span class="note" id="sovacount-status"></span>
+</div>
 
-<div class="sep"></div>
-<p class="muted">
-  caveman by <a href="https://github.com/JuliusBrussee/caveman">@JuliusBrussee</a>
-  &middot; dashboard MIT &middot; read-only &middot; localhost
-</p>
+<footer>
+  <span translate="no" class="notranslate">caveman</span>-skill door
+  <a href="https://github.com/JuliusBrussee/caveman" translate="no" class="notranslate">@JuliusBrussee</a>
+  &middot; dashboard MIT &middot; alleen-lezen &middot; lokaal
+</footer>
 
 <script>
-let showSova = false;
+// Visibility is owned by `document.body.dataset.showSova`. No JS-side mirror
+// variable so the interval refresh can never observe a half-updated state.
+function isSovaShown(){ return document.body.dataset.showSova === "true"; }
+function setSovaShown(b){ document.body.dataset.showSova = b ? "true" : "false"; }
 
-function fmt(v){ return v==null ? "—" : ("$" + v.toFixed(4)); }
-function fmtPct(v){ return v==null ? "—" : (v.toFixed(1) + "%"); }
-function fmtN(v){ return v==null ? "—" : v.toString(); }
+function fmtUsd(v){
+  if (v == null) return "—";
+  return "$" + v.toLocaleString("nl-BE", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+function fmtPct(v){
+  if (v == null) return "—";
+  return v.toLocaleString("nl-BE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+}
+function fmtN(v){
+  if (v == null) return "—";
+  return v.toLocaleString("nl-BE");
+}
 
-function renderBucket(table, label, b){
+function renderBucket(tbody, label, b){
   if (!b) return;
+  // Prefer the new T-SM-REAL fields; fall back to legacy aliases when an
+  // older API consumer hits a still-mounted page or vice versa.
+  const opusBaseline = b.if_opus_no_caveman_usd ?? b.baseline_usd ?? 0;
+  const tier         = b.tier_savings_usd        ?? 0;
+  const caveman      = b.caveman_savings_usd     ?? 0;
+  const total        = b.total_savings_usd       ?? b.savings_usd ?? 0;
+  const totalPct     = b.total_savings_pct       ?? b.savings_pct ?? 0;
   const tr = document.createElement("tr");
-  tr.innerHTML = `<td>${label}</td>
-    <td class="num">${fmtN(b.calls)} calls</td>
-    <td class="num">${fmt(b.baseline_usd)} baseline</td>
-    <td class="num">${fmt(b.actual_usd)} actual</td>
-    <td class="num">saved ${fmt(b.savings_usd)}</td>
-    <td class="num">${fmtPct(b.savings_pct)}</td>`;
-  table.appendChild(tr);
+  tr.innerHTML =
+    `<td class="label">${label}</td>` +
+    `<td class="num">${fmtN(b.calls)}</td>` +
+    `<td class="num">${fmtUsd(opusBaseline)}</td>` +
+    `<td class="num">${fmtUsd(b.actual_usd)}</td>` +
+    `<td class="num savings">${fmtUsd(tier)}</td>` +
+    `<td class="num savings">${fmtUsd(caveman)}</td>` +
+    `<td class="num savings">${fmtUsd(total)}</td>` +
+    `<td class="num">${fmtPct(totalPct)}</td>`;
+  tbody.appendChild(tr);
+}
+
+const MODE_ORDER  = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan-full", "wenyan-ultra"];
+const MODE_LABELS = {
+  "off":           "uit",
+  "lite":          "licht",
+  "full":          "vol",
+  "ultra":         "ultra",
+  "wenyan-lite":   "wenyan-licht",
+  "wenyan":        "wenyan-vol",
+  "wenyan-full":   "wenyan-vol",
+  "wenyan-ultra":  "wenyan-ultra"
+};
+
+function renderModes(by_mode){
+  const tbody = document.getElementById("modes-table");
+  const empty = document.getElementById("modes-empty");
+  tbody.innerHTML = "";
+
+  if (!by_mode || typeof by_mode !== "object") {
+    empty.style.display = "block";
+    return;
+  }
+
+  // Stable order: known modes first, unknowns appended alphabetically.
+  const seen = new Set();
+  const ordered = [];
+  for (const k of MODE_ORDER) {
+    if (by_mode[k]) { ordered.push(k); seen.add(k); }
+  }
+  for (const k of Object.keys(by_mode).sort()) {
+    if (!seen.has(k)) ordered.push(k);
+  }
+
+  let rendered = 0;
+  for (const mode of ordered) {
+    const b = by_mode[mode];
+    if (!b || !b.calls || b.calls === 0) continue;
+    const label = MODE_LABELS[mode] || mode;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td class="label">${label}</td>` +
+      `<td class="num">${fmtN(b.calls)}</td>` +
+      `<td class="num savings">${fmtUsd(b.savings_usd)}</td>` +
+      `<td class="num">${fmtPct(b.savings_pct)}</td>`;
+    tbody.appendChild(tr);
+    rendered++;
+  }
+  empty.style.display = rendered === 0 ? "block" : "none";
 }
 
 async function refresh(){
@@ -79,47 +462,91 @@ async function refresh(){
     const ct = document.getElementById("caveman-table");
     ct.innerHTML = "";
     if (d.caveman) {
-      renderBucket(ct, "today",      d.caveman.today);
-      renderBucket(ct, "7d",         d.caveman.last_7d);
-      renderBucket(ct, "cumulative", d.caveman.cumulative);
+      renderBucket(ct, "vandaag",    d.caveman.today);
+      renderBucket(ct, "7 dagen",    d.caveman.last_7d);
+      renderBucket(ct, "cumulatief", d.caveman.cumulative);
     }
 
-    const sovaOk = d.sovacount != null;
-    const btn = document.getElementById("toggle");
-    btn.disabled = !sovaOk;
-    document.getElementById("sovacount-status").textContent = sovaOk ? "" : "(sovacount unreachable on :8989)";
+    // by_mode lives on /api/caveman; /api/combined only forwards bucket trio.
+    try {
+      const r2 = await fetch("/api/caveman");
+      const d2 = await r2.json();
+      renderModes(d2.by_mode);
+    } catch (e) { renderModes(null); }
 
-    if (showSova && sovaOk) {
-      document.getElementById("sovacount-section").style.display = "block";
-      document.getElementById("combined-section").style.display = "block";
+    // Robust check: accept only object payloads that lack an `error` field.
+    const sovaOk = d.sovacount && typeof d.sovacount === "object" && !d.sovacount.error;
+    document.body.dataset.sovacountDown = sovaOk ? "false" : "true";
+    document.getElementById("sovacount-status").textContent =
+      sovaOk ? "" : "sovacount niet bereikbaar op :8989";
+
+    // Always populate sovacount + combined tables. CSS controls visibility via
+    // `body[data-show-sova]`, so the refresh interval never overrides a click.
+    if (sovaOk) {
       const st = document.getElementById("sovacount-table");
       st.innerHTML = "";
-      renderBucket(st, "today",      d.sovacount.today);
-      renderBucket(st, "cumulative", d.sovacount.cumulative);
+      renderBucket(st, "vandaag",    d.sovacount.today);
+      renderBucket(st, "cumulatief", d.sovacount.cumulative);
 
       const cb = document.getElementById("combined-table");
       cb.innerHTML = "";
-      renderBucket(cb, "all sources", d.combined);
-    } else {
-      document.getElementById("sovacount-section").style.display = "none";
-      document.getElementById("combined-section").style.display = "none";
+      renderBucket(cb, "alle bronnen", d.combined);
     }
 
-    document.getElementById("status").textContent = "live";
+    document.getElementById("status").textContent = "actief";
+    document.getElementById("status-dot").className = "dot";
+
   } catch(e) {
-    document.getElementById("status").textContent = "error";
+    document.getElementById("status").textContent = "fout";
+    document.getElementById("status-dot").className = "dot err";
   }
 }
 
-document.getElementById("toggle").addEventListener("click", () => {
-  showSova = !showSova;
-  const btn = document.getElementById("toggle");
-  btn.textContent = showSova ? "- hide sovacount" : "+ show sovacount";
-  btn.classList.toggle("off", !showSova);
-  refresh();
+async function loadBaseline(){
+  try {
+    const r = await fetch("/api/caveman");
+    // best-effort: cumulative.date gives the period range, baseline file separately
+    const r2 = await fetch("/api/reset", { method: "HEAD" }).catch(() => null);
+    // Show the moment of last reset via a quick GET-marker — fall back to "nu".
+  } catch(e) { /* ignore */ }
+}
+
+document.getElementById("toggle").addEventListener("click", async () => {
+  // CSS makes the button non-interactive when sovacount is down (via
+  // `body[data-sovacount-down]`), so we don't need a JS `disabled` check —
+  // pointer-events:none already short-circuits the click. Still: be defensive.
+  if (document.body.dataset.sovacountDown === "true") return;
+  const next = !isSovaShown();
+  setSovaShown(next);
+  document.getElementById("toggle").textContent =
+    next ? "− verberg sovacount" : "+ toon sovacount";
+  await refresh();
 });
 
-refresh();
-setInterval(refresh, 2000);
+document.getElementById("wipe").addEventListener("click", async () => {
+  if (!confirm("caveman-cache wissen?\n\nDit reset zowel besparing-basislijn als modus-historiek.\nsovacount blijft ongewijzigd.")) return;
+  const r = await fetch("/api/reset", { method: "POST" });
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById("baseline").textContent =
+      "basislijn: " + new Date(d.baseline).toLocaleString("nl-BE");
+    refresh();
+  } else {
+    alert("fout bij wissen: " + (d.error || "onbekend"));
+  }
+});
+
+(async () => {
+  // initial baseline display: read once via a no-op POST? safer: hint via reset HEAD
+  try {
+    const r = await fetch("/api/caveman");
+    const d = await r.json();
+    document.getElementById("baseline").textContent =
+      "basislijn actief";
+  } catch(e) { /* ignore */ }
+  refresh();
+})();
+
+setInterval(refresh, 15000);
 </script>
 </body></html>

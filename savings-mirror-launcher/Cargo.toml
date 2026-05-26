@@ -1,0 +1,40 @@
+[package]
+name = "savings-mirror-launcher"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "MIT"
+publish = false
+description = "Tray-only cross-platform launcher for the savings-mirror dashboard."
+
+[[bin]]
+name = "savings-mirror-launcher"
+path = "src/main.rs"
+
+[dependencies]
+tao             = "0.30"
+tray-icon       = "0.18"
+single-instance = "0.3"
+serde           = { version = "1", features = ["derive"] }
+anyhow          = "1"
+image           = { version = "0.25", default-features = false, features = ["png"] }
+open            = "5"
+
+[package.metadata.bundle]
+name              = "SavingsMirror"
+identifier        = "com.sovareq.savings-mirror"
+icon              = ["assets/icon.icns"]
+copyright         = "Copyright (c) 2026 Bjorn Lambrechts. MIT licensed."
+category          = "DeveloperTool"
+short_description = "Local read-only AI-tooling savings dashboard"
+osx_minimum_system_version = "11.0"
+
+[profile.release]
+strip         = true
+lto           = "thin"
+codegen-units = 1
+opt-level     = 3
+
+# Break out of any parent workspace — launcher is a standalone crate with
+# its own target dir + dependency tree, no shared cache with savings-mirror.
+[workspace]

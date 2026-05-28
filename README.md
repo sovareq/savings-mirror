@@ -168,7 +168,7 @@ body — frontend degrades gracefully without 500 handling.
 
 ## Companion tool: sovacount
 
-[sovacount](https://codeberg.org/sovareq/sovacount) is a tier-router that
+[sovacount](https://github.com/sovareq/sovacount) is a tier-router that
 sits in front of the Anthropic API and downgrades calls to Haiku/Sonnet where
 the user-facing quality budget allows. `savings-mirror` reads sovacount's
 `/cost` endpoint and folds those savings into the same dashboard.

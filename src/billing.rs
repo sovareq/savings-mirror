@@ -264,12 +264,50 @@ pub async fn fetch_oauth_usage(token: &str, base_url: &str) -> Result<OauthUsage
 
     let status = resp.status();
     if !status.is_success() {
+        // 429: surface `retry-after` header in the error message so callers
+        // can honour it (cache + deadline) without inspecting headers
+        // separately. Header format is either seconds (e.g. "3125") or an
+        // HTTP-date; we only parse the integer-seconds form because that's
+        // what Anthropic returns in practice.
+        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            let retry_after = resp
+                .headers()
+                .get(reqwest::header::RETRY_AFTER)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+            match retry_after {
+                Some(secs) => {
+                    anyhow::bail!("oauth-usage endpoint returned HTTP 429 (retry-after: {secs}s)")
+                }
+                None => anyhow::bail!("oauth-usage endpoint returned HTTP 429 (retry-after: ?)"),
+            }
+        }
         anyhow::bail!("oauth-usage endpoint returned HTTP {status}");
     }
 
     resp.json::<OauthUsage>()
         .await
         .context("decode /api/oauth/usage response")
+}
+
+/// Parse the optional `retry-after` seconds from an error message produced
+/// by [`fetch_oauth_usage`] on HTTP 429. Returns `None` if the message
+/// doesn't look like a rate-limit error or if retry-after isn't present.
+///
+/// Format match: `"... HTTP 429 (retry-after: {secs}s)"`.
+pub fn parse_retry_after_from_err(msg: &str) -> Option<u64> {
+    let needle = "retry-after: ";
+    let idx = msg.find(needle)?;
+    let tail = &msg[idx + needle.len()..];
+    let end = tail.find(['s', ')']).unwrap_or(tail.len());
+    tail[..end].parse::<u64>().ok()
+}
+
+/// Returns true if the error message indicates an HTTP 429 rate-limit from
+/// `fetch_oauth_usage`. Used by [`crate::main`] (api_billing helper) to
+/// decide whether to honour a rate-limit deadline.
+pub fn is_rate_limited_err(msg: &str) -> bool {
+    msg.contains("HTTP 429")
 }
 
 /// macOS Keychain reader. Best-effort, returns None on any failure.

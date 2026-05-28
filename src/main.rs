@@ -57,6 +57,138 @@ fn invalidate_billing_cache() {
     }
 }
 
+// T-SM-OAUTH-FIX-01 — caches successful `/api/oauth/usage` responses and
+// honours Anthropic's 429 `retry-after` so we don't pile on rate-limit
+// errors. The endpoint is rate-limited per-account; multiple browser
+// refreshes + the 5-minute frontend `loadBilling` polling cadence can
+// already exceed the limit if the user has another tool polling the same
+// endpoint.
+//
+// Layout: two statics. `OAUTH_USAGE_CACHE` holds the last successful
+// snapshot with a wall-clock timestamp; `OAUTH_RATE_LIMITED_UNTIL` holds
+// a deadline parsed from `retry-after`. Both can be Some independently:
+// when rate-limited we still return the cached snapshot (stale-while-
+// rate-limited) so the dashboard keeps showing useful data instead of
+// flickering to "data niet beschikbaar".
+static OAUTH_USAGE_CACHE: Mutex<Option<(Instant, billing::OauthUsage)>> = Mutex::new(None);
+static OAUTH_RATE_LIMITED_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+const OAUTH_USAGE_TTL: Duration = Duration::from_secs(240); // 4 min, under-polls Anthropic
+const OAUTH_DEFAULT_RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(300); // fallback if retry-after missing
+
+/// Internal outcome of an `/api/oauth/usage` lookup.
+enum OauthUsageOutcome {
+    /// Fresh snapshot.
+    Fresh(billing::OauthUsage),
+    /// Cached snapshot returned because the live fetch failed (rate-limit
+    /// or error). `note` describes why the live fetch wasn't used.
+    Stale {
+        snapshot: billing::OauthUsage,
+        note: String,
+    },
+    /// No usable snapshot. `error` carries the human-readable reason.
+    Unavailable { error: String },
+}
+
+/// Fetch `/api/oauth/usage` with cache + rate-limit deadline honour.
+async fn cached_oauth_usage(token: &str) -> OauthUsageOutcome {
+    // 1. Honour an active rate-limit deadline. If still pending, return
+    //    the most recent cached snapshot (Stale) or Unavailable.
+    {
+        let until = OAUTH_RATE_LIMITED_UNTIL
+            .lock()
+            .expect("oauth rate-limit mutex poisoned");
+        if let Some(deadline) = *until
+            && Instant::now() < deadline
+        {
+            let secs_left = (deadline - Instant::now()).as_secs();
+            let cache = OAUTH_USAGE_CACHE
+                .lock()
+                .expect("oauth usage cache mutex poisoned");
+            return match cache.as_ref() {
+                Some((_, snapshot)) => OauthUsageOutcome::Stale {
+                    snapshot: snapshot.clone(),
+                    note: format!(
+                        "rate-limited by Anthropic; serving cached snapshot ({secs_left}s left)"
+                    ),
+                },
+                None => OauthUsageOutcome::Unavailable {
+                    error: format!(
+                        "rate-limited by Anthropic; no cached snapshot yet ({secs_left}s left)"
+                    ),
+                },
+            };
+        }
+    }
+
+    // 2. Cache hit within TTL: return fresh without hitting the network.
+    {
+        let cache = OAUTH_USAGE_CACHE
+            .lock()
+            .expect("oauth usage cache mutex poisoned");
+        if let Some((at, snapshot)) = cache.as_ref()
+            && at.elapsed() < OAUTH_USAGE_TTL
+        {
+            return OauthUsageOutcome::Fresh(snapshot.clone());
+        }
+    }
+
+    // 3. Network fetch.
+    match billing::fetch_oauth_usage(token, "https://api.anthropic.com").await {
+        Ok(usage) => {
+            // Persist + clear any prior rate-limit deadline.
+            if let Ok(mut cache) = OAUTH_USAGE_CACHE.lock() {
+                *cache = Some((Instant::now(), usage.clone()));
+            }
+            if let Ok(mut until) = OAUTH_RATE_LIMITED_UNTIL.lock() {
+                *until = None;
+            }
+            OauthUsageOutcome::Fresh(usage)
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            if billing::is_rate_limited_err(&msg) {
+                // Parse retry-after if present, otherwise fallback.
+                let backoff = billing::parse_retry_after_from_err(&msg)
+                    .map(Duration::from_secs)
+                    .unwrap_or(OAUTH_DEFAULT_RATE_LIMIT_BACKOFF);
+                if let Ok(mut until) = OAUTH_RATE_LIMITED_UNTIL.lock() {
+                    *until = Some(Instant::now() + backoff);
+                }
+                let secs = backoff.as_secs();
+                let cache = OAUTH_USAGE_CACHE
+                    .lock()
+                    .expect("oauth usage cache mutex poisoned");
+                match cache.as_ref() {
+                    Some((_, snapshot)) => OauthUsageOutcome::Stale {
+                        snapshot: snapshot.clone(),
+                        note: format!(
+                            "rate-limited by Anthropic; serving cached snapshot ({secs}s deadline)"
+                        ),
+                    },
+                    None => OauthUsageOutcome::Unavailable {
+                        error: format!("rate-limited by Anthropic ({secs}s deadline): {msg}"),
+                    },
+                }
+            } else {
+                // Non-429 errors don't set a deadline. Surface cached snapshot
+                // if available, so transient blips don't blank the dashboard.
+                let cache = OAUTH_USAGE_CACHE
+                    .lock()
+                    .expect("oauth usage cache mutex poisoned");
+                match cache.as_ref() {
+                    Some((at, snapshot)) if at.elapsed() < OAUTH_USAGE_TTL * 4 => {
+                        OauthUsageOutcome::Stale {
+                            snapshot: snapshot.clone(),
+                            note: format!("live fetch failed; serving cached snapshot: {msg}"),
+                        }
+                    }
+                    _ => OauthUsageOutcome::Unavailable { error: msg },
+                }
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8991".to_string());
@@ -232,17 +364,24 @@ async fn api_billing() -> Json<Value> {
                     }));
                 }
             };
-            match billing::fetch_oauth_usage(&token, "https://api.anthropic.com").await {
-                Ok(usage) => Json(json!({
+            match cached_oauth_usage(&token).await {
+                OauthUsageOutcome::Fresh(usage) => Json(json!({
                     "mode":         "subscription",
                     "usage":        usage,
                     "detected_via": detected_via,
                 })),
-                Err(e) => Json(json!({
+                OauthUsageOutcome::Stale { snapshot, note } => Json(json!({
+                    "mode":         "subscription",
+                    "usage":        snapshot,
+                    "detected_via": detected_via,
+                    "stale":        true,
+                    "note":         note,
+                })),
+                OauthUsageOutcome::Unavailable { error } => Json(json!({
                     "mode":         "subscription",
                     "usage":        Value::Null,
                     "detected_via": "oauth-fetch-failed",
-                    "error":        e.to_string(),
+                    "error":        error,
                 })),
             }
         }

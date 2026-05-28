@@ -259,17 +259,153 @@
     opacity: 0.4;
     cursor: not-allowed;
   }
+
+  /* --- Billing mode pill ------------------------------------------------ */
+  .mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-sunken);
+    color: var(--color-ink-muted);
+    cursor: help;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  body[data-billing-mode="subscription"] .mode-pill {
+    color: var(--color-success);
+    border-color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+  }
+  body[data-billing-mode="api"] .mode-pill {
+    color: #3a6ea5;
+    border-color: #3a6ea5;
+    background: color-mix(in srgb, #3a6ea5 10%, var(--color-surface));
+  }
+  @media (prefers-color-scheme: dark) {
+    body[data-billing-mode="api"] .mode-pill {
+      color: #8ab4e8;
+      border-color: #8ab4e8;
+      background: color-mix(in srgb, #8ab4e8 14%, var(--color-surface));
+    }
+  }
+
+  /* --- Headroom card ---------------------------------------------------- */
+  #headroom-section { display: none; }
+  body[data-billing-mode="subscription"] #headroom-section { display: block; }
+
+  .headroom-bar-wrap {
+    margin-bottom: var(--space-4);
+  }
+  .headroom-bar-wrap:last-child { margin-bottom: 0; }
+
+  .headroom-bar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-1);
+  }
+  .headroom-bar-head .pct {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+  .headroom-bar-track {
+    position: relative;
+    width: 100%;
+    height: 12px;
+    background: var(--color-surface-sunken);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+  }
+  .headroom-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--color-success);
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+  .headroom-bar-fill.amber { background: #c8901a; }
+  .headroom-bar-fill.red   { background: var(--color-danger); }
+
+  .headroom-bar-reset {
+    font-size: var(--text-xs);
+    color: var(--color-ink-subtle);
+    margin-top: var(--space-1);
+    font-family: var(--font-mono);
+  }
+  .headroom-warning {
+    font-size: var(--text-sm);
+    color: var(--color-danger);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface-subtle);
+    border-left: 3px solid var(--color-danger);
+    border-radius: var(--radius-sm);
+  }
+
+  /* --- Subscription disclaimer ------------------------------------------ */
+  .subscription-disclaimer { display: none; }
+  body[data-billing-mode="subscription"] .subscription-disclaimer {
+    display: block;
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-ink-muted);
+    background: var(--color-surface-subtle);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--color-accent-soft);
+    line-height: 1.5;
+  }
 </style>
-</head><body data-show-sova="false" data-sovacount-down="false">
+</head><body data-show-sova="false" data-sovacount-down="false" data-billing-mode="auto-undetected">
 
 <header>
   <h1><span translate="no" class="notranslate">caveman</span></h1>
   <div class="meta">
     <span class="dot idle" id="status-dot"></span>
     <span id="status">laden…</span>
+    <span class="mode-pill" id="mode-pill" title="modus wordt bepaald…" tabindex="0">
+      <span id="mode-pill-label" translate="no" class="notranslate">Auto-detect…</span>
+    </span>
     <span class="baseline-info" id="baseline">basislijn: …</span>
   </div>
 </header>
+
+<section id="headroom-section" aria-label="Headroom">
+  <h2><span translate="no" class="notranslate">Headroom</span></h2>
+  <div id="headroom-content">
+    <div class="headroom-bar-wrap" id="headroom-5h-wrap">
+      <div class="headroom-bar-head">
+        <span>5u-venster</span>
+        <span class="pct" id="headroom-5h-pct">—</span>
+      </div>
+      <div class="headroom-bar-track">
+        <div class="headroom-bar-fill" id="headroom-5h-fill"></div>
+      </div>
+      <div class="headroom-bar-reset" id="headroom-5h-reset">resets at —</div>
+    </div>
+    <div class="headroom-bar-wrap" id="headroom-7d-wrap">
+      <div class="headroom-bar-head">
+        <span>7d-venster</span>
+        <span class="pct" id="headroom-7d-pct">—</span>
+      </div>
+      <div class="headroom-bar-track">
+        <div class="headroom-bar-fill" id="headroom-7d-fill"></div>
+      </div>
+      <div class="headroom-bar-reset" id="headroom-7d-reset">resets at —</div>
+    </div>
+  </div>
+  <div id="headroom-warning" class="headroom-warning" style="display:none">
+    Headroom-data niet beschikbaar — er worden cache- of schattingwaarden gebruikt.
+  </div>
+</section>
 
 <section id="caveman-section">
   <h2><span translate="no" class="notranslate">caveman</span>-besparing</h2>
@@ -294,6 +430,9 @@
     totaal = som beide. echte caveman-meting vereist controle-run zonder
     <span translate="no" class="notranslate">caveman</span>.
   </p>
+  <div class="subscription-disclaimer">
+    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+  </div>
 </section>
 
 <section id="sovacount-section">
@@ -313,6 +452,9 @@
     </thead>
     <tbody id="sovacount-table"></tbody>
   </table>
+  <div class="subscription-disclaimer">
+    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+  </div>
 </section>
 
 <section id="combined-section">
@@ -332,6 +474,9 @@
     </thead>
     <tbody id="combined-table"></tbody>
   </table>
+  <div class="subscription-disclaimer">
+    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+  </div>
 </section>
 
 <section id="modes-section">
@@ -381,6 +526,105 @@ function fmtPct(v){
 function fmtN(v){
   if (v == null) return "—";
   return v.toLocaleString("nl-BE");
+}
+
+// --- Billing mode -----------------------------------------------------------
+// Allowed body[data-billing-mode] values: "api", "subscription", "auto-undetected"
+const MODE_LABEL = {
+  "api":              "API mode",
+  "subscription":     "Subscription mode",
+  "auto-undetected":  "Auto-detect…",
+  "auto":             "Auto-detect…"
+};
+
+const DETECTED_VIA_LABEL = {
+  "env":               "via environment variable",
+  "keychain":          "via macOS Keychain (OAuth)",
+  "file":              "via credentials file",
+  "fallback":          "via fallback heuristic",
+  "oauth-fetch-failed":"OAuth detected, usage fetch failed",
+  "combined-fallback": "via /api/combined fast-path"
+};
+
+function normalizeBillingMode(m){
+  if (m === "api" || m === "subscription") return m;
+  return "auto-undetected";
+}
+
+function setBillingMode(mode, detectedVia, errorMsg){
+  const norm = normalizeBillingMode(mode);
+  document.body.dataset.billingMode = norm;
+  const pill  = document.getElementById("mode-pill");
+  const label = document.getElementById("mode-pill-label");
+  if (!pill || !label) return;
+  label.textContent = MODE_LABEL[norm] || MODE_LABEL["auto-undetected"];
+  const detail = DETECTED_VIA_LABEL[detectedVia] || (detectedVia ? `detected via ${detectedVia}` : "modus nog niet vastgesteld");
+  const errPart = errorMsg ? ` — ${errorMsg}` : "";
+  pill.title = `${label.textContent} — ${detail}${errPart}`;
+}
+
+function renderHeadroom(usage){
+  const warn = document.getElementById("headroom-warning");
+  const content = document.getElementById("headroom-content");
+  if (!usage || (!usage.five_hour && !usage.seven_day)) {
+    if (warn) warn.style.display = "block";
+    if (content) content.style.display = "none";
+    return;
+  }
+  if (warn) warn.style.display = "none";
+  if (content) content.style.display = "";
+
+  const paint = (win, pctId, fillId, resetId) => {
+    const pctEl   = document.getElementById(pctId);
+    const fillEl  = document.getElementById(fillId);
+    const resetEl = document.getElementById(resetId);
+    if (!pctEl || !fillEl || !resetEl) return;
+    if (!win || typeof win.utilization !== "number") {
+      pctEl.textContent   = "—";
+      fillEl.style.width  = "0%";
+      fillEl.className    = "headroom-bar-fill";
+      resetEl.textContent = "resets at —";
+      return;
+    }
+    const pct = Math.max(0, Math.min(100, win.utilization));
+    pctEl.textContent = fmtPct(pct);
+    fillEl.style.width = pct + "%";
+    let cls = "headroom-bar-fill";
+    if (pct >= 90)      cls += " red";
+    else if (pct >= 70) cls += " amber";
+    fillEl.className = cls;
+    let resetTxt = "resets at —";
+    if (win.resets_at) {
+      try {
+        const d = new Date(win.resets_at);
+        if (!isNaN(d.getTime())) {
+          resetTxt = "resets at " + d.toLocaleString("nl-BE");
+        }
+      } catch(e) { /* keep dash */ }
+    }
+    resetEl.textContent = resetTxt;
+  };
+
+  paint(usage.five_hour, "headroom-5h-pct", "headroom-5h-fill", "headroom-5h-reset");
+  paint(usage.seven_day, "headroom-7d-pct", "headroom-7d-fill", "headroom-7d-reset");
+}
+
+async function loadBilling(){
+  try {
+    const r = await fetch("/api/billing");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    setBillingMode(d.mode, d.detected_via, d.error);
+    if (normalizeBillingMode(d.mode) === "subscription") {
+      renderHeadroom(d.usage);
+    }
+  } catch(e) {
+    // leave whatever the combined-payload signal gave us; only reset to
+    // auto-undetected if we have no prior mode yet.
+    if (!document.body.dataset.billingMode || document.body.dataset.billingMode === "auto-undetected") {
+      setBillingMode("auto-undetected", null, "billing endpoint unreachable");
+    }
+  }
 }
 
 function renderBucket(tbody, label, b){
@@ -458,6 +702,18 @@ async function refresh(){
   try {
     const r = await fetch("/api/combined");
     const d = await r.json();
+
+    // Fast-path billing-mode signal (every 15s). Doesn't replace loadBilling,
+    // just keeps the pill fresh between 5-min /api/billing polls.
+    if (typeof d.billing_mode === "string") {
+      const cur = document.body.dataset.billingMode;
+      const next = normalizeBillingMode(d.billing_mode);
+      if (cur !== next) {
+        // Preserve detected_via in tooltip if loadBilling already set it;
+        // otherwise mark provenance as "combined" so it's not blank.
+        setBillingMode(d.billing_mode, "combined-fallback", null);
+      }
+    }
 
     const ct = document.getElementById("caveman-table");
     ct.innerHTML = "";
@@ -544,9 +800,12 @@ document.getElementById("wipe").addEventListener("click", async () => {
     document.getElementById("baseline").textContent =
       "basislijn actief";
   } catch(e) { /* ignore */ }
+  loadBilling();
   refresh();
 })();
 
 setInterval(refresh, 15000);
+// /api/billing wraps an upstream OAuth call — poll it sparingly.
+setInterval(loadBilling, 5 * 60 * 1000);
 </script>
 </body></html>

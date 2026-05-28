@@ -18,10 +18,35 @@ use axum::{
     routing::{get, post},
 };
 use serde_json::{Value, json};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
+mod billing;
 mod caveman;
 mod mode_history;
 mod sovacount;
+
+/// TTL-cache for `billing::detect_mode()` so the 15-second `/api/combined`
+/// polling loop (and the per-request `/api/billing` handler) don't shell out
+/// to the macOS Keychain every poll. Five-minute TTL matches the frontend's
+/// `loadBilling` cadence (`assets/dashboard.html`), so a user-visible env
+/// change shows up on the dashboard within one full refresh window.
+static BILLING_CACHE: Mutex<Option<(Instant, billing::BillingMode, &'static str)>> =
+    Mutex::new(None);
+const BILLING_CACHE_TTL: Duration = Duration::from_secs(300);
+
+fn cached_billing() -> (billing::BillingMode, &'static str) {
+    let mut cache = BILLING_CACHE.lock().expect("billing cache mutex poisoned");
+    if let Some((at, mode, src)) = cache.as_ref()
+        && at.elapsed() < BILLING_CACHE_TTL
+    {
+        return (*mode, *src);
+    }
+    let mode = billing::detect_mode();
+    let src = billing::detection_source();
+    *cache = Some((Instant::now(), mode, src));
+    (mode, src)
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/caveman", get(api_caveman))
         .route("/api/sovacount", get(api_sovacount))
         .route("/api/combined", get(api_combined))
+        .route("/api/billing", get(api_billing))
         .route("/api/reset", post(api_reset));
 
     let listener = tokio::net::TcpListener::bind(&bind).await?;
@@ -158,11 +184,57 @@ async fn api_combined() -> Json<Value> {
         _ => Value::Null,
     };
 
+    let (billing_mode, _) = cached_billing();
+
     Json(json!({
-        "caveman":   caveman_v,
-        "sovacount": sov_v,
-        "combined":  combined_v,
+        "caveman":      caveman_v,
+        "sovacount":    sov_v,
+        "combined":     combined_v,
+        "billing_mode": billing_mode.as_str(),
     }))
+}
+
+/// Billing-mode endpoint. Returns the detected mode plus, when subscription,
+/// a best-effort utilization snapshot from Anthropic's `/api/oauth/usage`.
+///
+/// Always HTTP 200 — failure shapes are encoded in the body, matching the
+/// rest of this codebase (see the module-level doc comment).
+async fn api_billing() -> Json<Value> {
+    let (mode, detected_via) = cached_billing();
+
+    match mode {
+        billing::BillingMode::Api | billing::BillingMode::Auto => Json(json!({
+            "mode":         "api",
+            "usage":        Value::Null,
+            "detected_via": detected_via,
+        })),
+        billing::BillingMode::Subscription => {
+            let token = match billing::read_oauth_token() {
+                Some(t) => t,
+                None => {
+                    return Json(json!({
+                        "mode":         "subscription",
+                        "usage":        Value::Null,
+                        "detected_via": "oauth-token-missing",
+                        "error":        "no oauth access token available",
+                    }));
+                }
+            };
+            match billing::fetch_oauth_usage(&token, "https://api.anthropic.com").await {
+                Ok(usage) => Json(json!({
+                    "mode":         "subscription",
+                    "usage":        usage,
+                    "detected_via": detected_via,
+                })),
+                Err(e) => Json(json!({
+                    "mode":         "subscription",
+                    "usage":        Value::Null,
+                    "detected_via": "oauth-fetch-failed",
+                    "error":        e.to_string(),
+                })),
+            }
+        }
+    }
 }
 
 fn tier_to_bucket(t: &sovacount::TierBucket, label: &str) -> Value {

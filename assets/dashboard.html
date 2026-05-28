@@ -376,6 +376,24 @@
     border-left: 2px solid var(--color-accent-soft);
     line-height: 1.5;
   }
+
+  /* T-SM-BILLING-TOKENS-01 — sub mode visual degradering van USD,
+     en prominente weergave van tokens-bespaard. */
+  .tokens-col { display: none; }  /* default: hidden in API mode */
+  body[data-billing-mode="subscription"] .tokens-col {
+    display: table-cell;
+    font-weight: 700;
+    color: var(--ink-strong, #1a1a1a);
+  }
+  body[data-billing-mode="subscription"] td.usd-secondary {
+    font-style: italic;
+    color: var(--ink-muted, #888);
+    font-size: 0.9em;
+  }
+  body[data-billing-mode="subscription"] th:not(.tokens-col):not(:first-child):not(:nth-child(2)) {
+    color: var(--ink-muted, #888);
+    font-weight: normal;
+  }
 </style>
 </head><body data-show-sova="false" data-sovacount-down="false" data-billing-mode="auto-undetected">
 
@@ -433,6 +451,7 @@
         <th class="num">caveman-winst</th>
         <th class="num">totaal-winst</th>
         <th class="num">%</th>
+        <th class="num tokens-col">tokens-bespaard</th>
       </tr>
     </thead>
     <tbody id="caveman-table"></tbody>
@@ -461,6 +480,7 @@
         <th class="num">caveman-winst</th>
         <th class="num">totaal-winst</th>
         <th class="num">%</th>
+        <th class="num tokens-col">tokens-bespaard</th>
       </tr>
     </thead>
     <tbody id="sovacount-table"></tbody>
@@ -483,6 +503,7 @@
         <th class="num">caveman-winst</th>
         <th class="num">totaal-winst</th>
         <th class="num">%</th>
+        <th class="num tokens-col">tokens-bespaard</th>
       </tr>
     </thead>
     <tbody id="combined-table"></tbody>
@@ -501,6 +522,7 @@
         <th class="num">oproepen</th>
         <th class="num">winst</th>
         <th class="num">%</th>
+        <th class="num tokens-col">tokens-bespaard</th>
       </tr>
     </thead>
     <tbody id="modes-table"></tbody>
@@ -690,25 +712,52 @@ async function loadBilling(){
   }
 }
 
+function fmtTokens(n){
+  if (n == null || !isFinite(n)) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(n);
+}
+
 function renderBucket(tbody, label, b){
   if (!b) return;
   // Prefer the new T-SM-REAL fields; fall back to legacy aliases when an
   // older API consumer hits a still-mounted page or vice versa.
-  const opusBaseline = b.if_opus_no_caveman_usd ?? b.baseline_usd ?? 0;
-  const tier         = b.tier_savings_usd        ?? 0;
-  const caveman      = b.caveman_savings_usd     ?? 0;
-  const total        = b.total_savings_usd       ?? b.savings_usd ?? 0;
-  const totalPct     = b.total_savings_pct       ?? b.savings_pct ?? 0;
+  const opusBaseline  = b.if_opus_no_caveman_usd ?? b.baseline_usd ?? 0;
+  const tier          = b.tier_savings_usd        ?? 0;
+  const caveman       = b.caveman_savings_usd     ?? 0;
+  const total         = b.total_savings_usd       ?? b.savings_usd ?? 0;
+  const totalPct      = b.total_savings_pct       ?? b.savings_pct ?? 0;
+  const outTokens     = b.out_tokens_total        ?? 0;
+
+  const isSub = document.body.dataset.billingMode === "subscription";
+
   const tr = document.createElement("tr");
-  tr.innerHTML =
-    `<td class="label">${label}</td>` +
-    `<td class="num">${fmtN(b.calls)}</td>` +
-    `<td class="num">${fmtUsd(opusBaseline)}</td>` +
-    `<td class="num">${fmtUsd(b.actual_usd)}</td>` +
-    `<td class="num savings">${fmtUsd(tier)}</td>` +
-    `<td class="num savings">${fmtUsd(caveman)}</td>` +
-    `<td class="num savings">${fmtUsd(total)}</td>` +
-    `<td class="num">${fmtPct(totalPct)}</td>`;
+  if (isSub) tr.classList.add("sub-mode");
+
+  if (isSub) {
+    tr.innerHTML =
+      `<td class="label">${label}</td>` +
+      `<td class="num">${fmtN(b.calls)}</td>` +
+      `<td class="num usd-secondary">≈ ${fmtUsd(opusBaseline)}</td>` +
+      `<td class="num usd-secondary">≈ ${fmtUsd(b.actual_usd)}</td>` +
+      `<td class="num savings usd-secondary">${fmtUsd(tier)}</td>` +
+      `<td class="num savings usd-secondary">${fmtUsd(caveman)}</td>` +
+      `<td class="num savings usd-secondary">${fmtUsd(total)}</td>` +
+      `<td class="num">${fmtPct(totalPct)}</td>` +
+      `<td class="num savings tokens-col">${fmtTokens(outTokens)}</td>`;
+  } else {
+    tr.innerHTML =
+      `<td class="label">${label}</td>` +
+      `<td class="num">${fmtN(b.calls)}</td>` +
+      `<td class="num">${fmtUsd(opusBaseline)}</td>` +
+      `<td class="num">${fmtUsd(b.actual_usd)}</td>` +
+      `<td class="num savings">${fmtUsd(tier)}</td>` +
+      `<td class="num savings">${fmtUsd(caveman)}</td>` +
+      `<td class="num savings">${fmtUsd(total)}</td>` +
+      `<td class="num">${fmtPct(totalPct)}</td>` +
+      `<td class="num savings tokens-col">${fmtTokens(outTokens)}</td>`;
+  }
   tbody.appendChild(tr);
 }
 
@@ -749,12 +798,14 @@ function renderModes(by_mode){
     const b = by_mode[mode];
     if (!b || !b.calls || b.calls === 0) continue;
     const label = MODE_LABELS[mode] || mode;
+    const modeTokens = b.out_tokens_total ?? 0;
     const tr = document.createElement("tr");
     tr.innerHTML =
       `<td class="label">${label}</td>` +
       `<td class="num">${fmtN(b.calls)}</td>` +
       `<td class="num savings">${fmtUsd(b.savings_usd)}</td>` +
-      `<td class="num">${fmtPct(b.savings_pct)}</td>`;
+      `<td class="num">${fmtPct(b.savings_pct)}</td>` +
+      `<td class="num savings tokens-col">${fmtTokens(modeTokens)}</td>`;
     tbody.appendChild(tr);
     rendered++;
   }

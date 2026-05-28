@@ -1,9 +1,9 @@
 # TEST-RESULTS — caveman-dashboard T-CD-01..T-CD-04
 
-Date: 2026-05-26  
+Date: 2026-05-26 (initial); environment now 2026-05-28 — re-verification scheduled.  
 Host: Mac Mini Apple Silicon  
 Cargo: 1.95.0  
-Source transcripts: ~/.claude/projects/ (35 dirs, 669 jsonl files)
+Source transcripts: ~/.claude/projects/ (35 dirs, 669 jsonl files at time of run)
 
 ## Gates
 

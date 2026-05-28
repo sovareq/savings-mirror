@@ -41,7 +41,7 @@ claim on its own.
 ### macOS app (recommended)
 
 ```sh
-git clone https://codeberg.org/sovareq/savings-mirror.git
+git clone https://github.com/sovareq/savings-mirror.git
 cd savings-mirror
 ./scripts/build-app.sh           # produces ~/Desktop/SavingsMirror.app
 open ~/Desktop/SavingsMirror.app # menubar app, auto-starts the runtime
@@ -58,7 +58,7 @@ open http://127.0.0.1:8991
 ### From a release tarball
 
 Grab the latest `savings-mirror-<version>-<arch>.tar.gz` from the
-[releases page](https://codeberg.org/sovareq/savings-mirror/releases),
+[releases page](https://github.com/sovareq/savings-mirror/releases),
 extract, and run the binary.
 
 ---
@@ -132,8 +132,9 @@ mode. Modes with zero calls are hidden.
   Stops a runaway client (or a stale 2s-polling tab) from triggering a full
   transcript walk on every request.
 - **Baseline**: `~/.local/share/savings-mirror/baseline.txt` holds the
-  "count from this instant" timestamp. `POST /api/reset` rewrites it to now and
-  wipes the mode-history file in lockstep.
+  "count from this instant" timestamp. `POST /api/reset` rewrites it to now;
+  the mode-history truncate runs immediately after but is best-effort
+  (non-fatal on I/O error). The baseline write is authoritative.
 - **Cost**: zero third-party crates other than axum/tokio/chrono/walkdir/serde.
 
 ---
@@ -160,18 +161,23 @@ body — frontend degrades gracefully without 500 handling.
 
 - No write-back to caveman, sovacount, or your transcripts.
 - No telemetry. No remote calls. No analytics.
-- No mutations on disk other than `baseline.txt` and `mode-history.ndjson`
-  under `~/.local/share/savings-mirror/`.
+- No mutations on disk other than `baseline.txt` + `mode-history.ndjson`
+  under `~/.local/share/savings-mirror/`, and `billing-mode-override`
+  under `~/.config/savings-mirror/` (set via the dashboard pill toggle).
 - No model invocations — 100% offline transcript parsing.
 
 ---
 
 ## Companion tool: sovacount
 
-[sovacount](https://github.com/sovareq/sovacount) is a tier-router that
-sits in front of the Anthropic API and downgrades calls to Haiku/Sonnet where
-the user-facing quality budget allows. `savings-mirror` reads sovacount's
-`/cost` endpoint and folds those savings into the same dashboard.
+[sovacount](https://github.com/sovareq/sovacount) is a separate process that
+exposes a `/cost` endpoint summarising tier-routing savings (Haiku/Sonnet vs
+Opus baseline) for prompts you route through it. `savings-mirror` polls that
+endpoint post-hoc and folds the totals into the same dashboard.
+
+**Neither tool intercepts LLM traffic.** sovacount classifies and records;
+savings-mirror reads. Both are pure consumers of work that already happened —
+no proxy, no man-in-the-middle, no live mutation of your API calls.
 
 ---
 

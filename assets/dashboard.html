@@ -273,9 +273,22 @@
     border: 1px solid var(--color-border);
     background: var(--color-surface-sunken);
     color: var(--color-ink-muted);
-    cursor: help;
+    cursor: pointer;
     letter-spacing: 0.02em;
     white-space: nowrap;
+    user-select: none;
+    transition: transform 0.08s ease, filter 0.08s ease;
+  }
+  .mode-pill:hover { filter: brightness(1.06); }
+  .mode-pill:active { transform: translateY(1px); }
+  .mode-pill:focus-visible {
+    outline: 2px solid var(--color-accent, #3a6ea5);
+    outline-offset: 2px;
+  }
+  .mode-pill[data-override="true"]::after {
+    content: " 📌";
+    font-size: 0.85em;
+    margin-left: 2px;
   }
   body[data-billing-mode="subscription"] .mode-pill {
     color: var(--color-success);
@@ -538,13 +551,33 @@ const MODE_LABEL = {
 };
 
 const DETECTED_VIA_LABEL = {
-  "env":               "via environment variable",
-  "keychain":          "via macOS Keychain (OAuth)",
-  "file":              "via credentials file",
-  "fallback":          "via fallback heuristic",
-  "oauth-fetch-failed":"OAuth detected, usage fetch failed",
-  "combined-fallback": "via /api/combined fast-path"
+  "env":                       "via environment variable",
+  "env-forced":                "via SAVINGS_MIRROR_BILLING_MODE env",
+  "env-anthropic-api-key":     "via ANTHROPIC_API_KEY env",
+  "env-anthropic-auth-token":  "via ANTHROPIC_AUTH_TOKEN env",
+  "env-claude-code-oauth-token":"via CLAUDE_CODE_OAUTH_TOKEN env",
+  "keychain":                  "via macOS Keychain (OAuth)",
+  "file":                      "via credentials file",
+  "fallback":                  "via fallback heuristic",
+  "fallback-api":              "via fallback (no auth detected)",
+  "oauth-token":               "via OAuth token",
+  "oauth-fetch-failed":        "OAuth detected, usage fetch failed",
+  "oauth-token-missing":       "subscription pinned but no OAuth token found",
+  "combined-fallback":         "via /api/combined fast-path",
+  "ui-override":               "pinned via dashboard click (📌)"
 };
+
+// Click-cycle order for the mode pill:
+//   subscription → api → auto (clears override) → back to whatever auto-detect resolves to.
+// We do NOT cycle through "auto-undetected" because that's only a placeholder
+// before the first /api/billing response.
+const PILL_CYCLE = ["subscription", "api", "auto"];
+function nextModeInCycle(current){
+  // Treat anything not in the cycle (auto-undetected, unknown) as starting fresh.
+  const idx = PILL_CYCLE.indexOf(current);
+  if (idx === -1) return PILL_CYCLE[0];
+  return PILL_CYCLE[(idx + 1) % PILL_CYCLE.length];
+}
 
 function normalizeBillingMode(m){
   if (m === "api" || m === "subscription") return m;
@@ -560,7 +593,37 @@ function setBillingMode(mode, detectedVia, errorMsg){
   label.textContent = MODE_LABEL[norm] || MODE_LABEL["auto-undetected"];
   const detail = DETECTED_VIA_LABEL[detectedVia] || (detectedVia ? `detected via ${detectedVia}` : "modus nog niet vastgesteld");
   const errPart = errorMsg ? ` — ${errorMsg}` : "";
-  pill.title = `${label.textContent} — ${detail}${errPart}`;
+  pill.dataset.override = detectedVia === "ui-override" ? "true" : "false";
+  const clickHint = "\n\nKlik om te wisselen tussen Subscription / API / Auto-detect.";
+  pill.title = `${label.textContent} — ${detail}${errPart}${clickHint}`;
+}
+
+/// Send the requested override to the backend. `mode` is "api" |
+/// "subscription" | "auto" (where "auto" clears the override). Updates the
+/// pill immediately on success so the user gets sub-100ms feedback even
+/// before the next /api/billing poll. Logs to console on failure.
+async function setOverride(mode){
+  const body = mode === "auto" ? { mode: null } : { mode };
+  try {
+    const r = await fetch("/api/billing/override", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (d.ok !== true) throw new Error(d.error || "override failed");
+    // Backend echoes the resolved mode + detected_via post-override.
+    setBillingMode(d.mode, d.detected_via, null);
+    // Re-pull /api/billing so the headroom card (subscription mode) refreshes.
+    await loadBilling();
+  } catch (e) {
+    console.warn("setOverride failed:", e);
+    const pill = document.getElementById("mode-pill");
+    if (pill) {
+      pill.title = `${pill.title || ""}\n\n[ERROR: ${e.message || e}]`;
+    }
+  }
 }
 
 function renderHeadroom(usage){
@@ -765,6 +828,26 @@ async function loadBaseline(){
     const r2 = await fetch("/api/reset", { method: "HEAD" }).catch(() => null);
     // Show the moment of last reset via a quick GET-marker — fall back to "nu".
   } catch(e) { /* ignore */ }
+}
+
+// Mode pill — click cycles subscription → api → auto (clear override) →
+// back to whatever auto-detect resolves to.
+{
+  const pill = document.getElementById("mode-pill");
+  if (pill) {
+    const handler = async () => {
+      const cur = document.body.dataset.billingMode || "auto-undetected";
+      const next = nextModeInCycle(cur);
+      await setOverride(next);
+    };
+    pill.addEventListener("click", handler);
+    pill.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handler();
+      }
+    });
+  }
 }
 
 document.getElementById("toggle").addEventListener("click", async () => {

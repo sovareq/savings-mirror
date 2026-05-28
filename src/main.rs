@@ -48,6 +48,15 @@ fn cached_billing() -> (billing::BillingMode, &'static str) {
     (mode, src)
 }
 
+/// Drop the cached billing decision so the next request re-runs the full
+/// precedence chain. Called after a successful `POST /api/billing/override`
+/// so the dashboard sees the new mode immediately, not after a 5-min TTL.
+fn invalidate_billing_cache() {
+    if let Ok(mut cache) = BILLING_CACHE.lock() {
+        *cache = None;
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8991".to_string());
@@ -59,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/sovacount", get(api_sovacount))
         .route("/api/combined", get(api_combined))
         .route("/api/billing", get(api_billing))
+        .route("/api/billing/override", post(api_billing_override))
         .route("/api/reset", post(api_reset));
 
     let listener = tokio::net::TcpListener::bind(&bind).await?;
@@ -234,6 +244,55 @@ async fn api_billing() -> Json<Value> {
                 })),
             }
         }
+    }
+}
+
+/// Persist a UI-driven billing-mode override.
+///
+/// Body: `{"mode": "api" | "subscription" | "auto" | null}`.
+/// - `"api"` / `"subscription"` → pin that mode (overrides env + OAuth).
+/// - `"auto"` or `null` → clear override (back to auto-detect).
+///
+/// The cache is invalidated on success so the dashboard's next `loadBilling`
+/// call sees the new mode without waiting for the 5-minute TTL.
+async fn api_billing_override(Json(payload): Json<Value>) -> Json<Value> {
+    let raw_mode = payload.get("mode");
+    let parsed: Option<Option<billing::BillingMode>> = match raw_mode {
+        Some(Value::Null) | None => Some(None), // clear
+        Some(Value::String(s)) => match s.trim().to_ascii_lowercase().as_str() {
+            "api" => Some(Some(billing::BillingMode::Api)),
+            "subscription" => Some(Some(billing::BillingMode::Subscription)),
+            "auto" | "" => Some(None), // clear
+            _ => None,                 // unknown string
+        },
+        _ => None, // wrong JSON type
+    };
+
+    let target = match parsed {
+        Some(t) => t,
+        None => {
+            return Json(json!({
+                "ok":    false,
+                "error": "mode must be one of: api, subscription, auto, null",
+            }));
+        }
+    };
+
+    match billing::write_override(target) {
+        Ok(()) => {
+            invalidate_billing_cache();
+            let (mode, detected_via) = cached_billing();
+            Json(json!({
+                "ok":            true,
+                "mode":          mode.as_str(),
+                "detected_via":  detected_via,
+                "override_active": target.is_some(),
+            }))
+        }
+        Err(e) => Json(json!({
+            "ok":    false,
+            "error": e.to_string(),
+        })),
     }
 }
 

@@ -394,6 +394,13 @@
     color: var(--ink-muted, #888);
     font-weight: normal;
   }
+
+  /* T-SM-BILLING-TOKENS-02 — Plan D: in subscription mode the USD columns
+     don't represent money the user pays. Hide them entirely so the dashboard
+     surface stays honest. Disclaimer below the table explains the reason. */
+  body[data-billing-mode="subscription"] .usd-col {
+    display: none !important;
+  }
 </style>
 </head><body data-show-sova="false" data-sovacount-down="false" data-billing-mode="auto-undetected">
 
@@ -445,11 +452,11 @@
       <tr>
         <th>periode</th>
         <th class="num">oproepen</th>
-        <th class="num">opus-baseline</th>
-        <th class="num">werkelijk</th>
-        <th class="num">tier-winst</th>
-        <th class="num">caveman-winst</th>
-        <th class="num">totaal-winst</th>
+        <th class="num usd-col">opus-baseline</th>
+        <th class="num usd-col">werkelijk</th>
+        <th class="num usd-col">tier-winst</th>
+        <th class="num usd-col">caveman-winst</th>
+        <th class="num usd-col">totaal-winst</th>
         <th class="num">%</th>
         <th class="num tokens-col">tokens-bespaard</th>
       </tr>
@@ -463,7 +470,7 @@
     <span translate="no" class="notranslate">caveman</span>.
   </p>
   <div class="subscription-disclaimer">
-    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+    <strong>tokens-bespaard</strong> = output-tokens die <span translate="no" class="notranslate">caveman</span>-compressie of <span translate="no" class="notranslate">sovacount</span>-tier-routing heeft vermeden. In abonnement-modus is dat de relevante metric: minder tokens = meer headroom binnen je 5u / 7d cap. USD-kolommen verborgen want abonnementen rekenen vast bedrag.
   </div>
 </section>
 
@@ -474,11 +481,11 @@
       <tr>
         <th>periode</th>
         <th class="num">oproepen</th>
-        <th class="num">opus-baseline</th>
-        <th class="num">werkelijk</th>
-        <th class="num">tier-winst</th>
-        <th class="num">caveman-winst</th>
-        <th class="num">totaal-winst</th>
+        <th class="num usd-col">opus-baseline</th>
+        <th class="num usd-col">werkelijk</th>
+        <th class="num usd-col">tier-winst</th>
+        <th class="num usd-col">caveman-winst</th>
+        <th class="num usd-col">totaal-winst</th>
         <th class="num">%</th>
         <th class="num tokens-col">tokens-bespaard</th>
       </tr>
@@ -486,7 +493,7 @@
     <tbody id="sovacount-table"></tbody>
   </table>
   <div class="subscription-disclaimer">
-    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+    <strong>tokens-bespaard</strong> = output-tokens die <span translate="no" class="notranslate">caveman</span>-compressie of <span translate="no" class="notranslate">sovacount</span>-tier-routing heeft vermeden. In abonnement-modus is dat de relevante metric: minder tokens = meer headroom binnen je 5u / 7d cap. USD-kolommen verborgen want abonnementen rekenen vast bedrag.
   </div>
 </section>
 
@@ -497,11 +504,11 @@
       <tr>
         <th>bron</th>
         <th class="num">oproepen</th>
-        <th class="num">opus-baseline</th>
-        <th class="num">werkelijk</th>
-        <th class="num">tier-winst</th>
-        <th class="num">caveman-winst</th>
-        <th class="num">totaal-winst</th>
+        <th class="num usd-col">opus-baseline</th>
+        <th class="num usd-col">werkelijk</th>
+        <th class="num usd-col">tier-winst</th>
+        <th class="num usd-col">caveman-winst</th>
+        <th class="num usd-col">totaal-winst</th>
         <th class="num">%</th>
         <th class="num tokens-col">tokens-bespaard</th>
       </tr>
@@ -509,7 +516,7 @@
     <tbody id="combined-table"></tbody>
   </table>
   <div class="subscription-disclaimer">
-    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+    <strong>tokens-bespaard</strong> = output-tokens die <span translate="no" class="notranslate">caveman</span>-compressie of <span translate="no" class="notranslate">sovacount</span>-tier-routing heeft vermeden. In abonnement-modus is dat de relevante metric: minder tokens = meer headroom binnen je 5u / 7d cap. USD-kolommen verborgen want abonnementen rekenen vast bedrag.
   </div>
 </section>
 
@@ -520,7 +527,7 @@
       <tr>
         <th>modus</th>
         <th class="num">oproepen</th>
-        <th class="num">winst</th>
+        <th class="num usd-col">winst</th>
         <th class="num">%</th>
         <th class="num tokens-col">tokens-bespaard</th>
       </tr>
@@ -739,22 +746,22 @@ function renderBucket(tbody, label, b){
     tr.innerHTML =
       `<td class="label">${label}</td>` +
       `<td class="num">${fmtN(b.calls)}</td>` +
-      `<td class="num usd-secondary">≈ ${fmtUsd(opusBaseline)}</td>` +
-      `<td class="num usd-secondary">≈ ${fmtUsd(b.actual_usd)}</td>` +
-      `<td class="num savings usd-secondary">${fmtUsd(tier)}</td>` +
-      `<td class="num savings usd-secondary">${fmtUsd(caveman)}</td>` +
-      `<td class="num savings usd-secondary">${fmtUsd(total)}</td>` +
+      `<td class="num usd-secondary usd-col">≈ ${fmtUsd(opusBaseline)}</td>` +
+      `<td class="num usd-secondary usd-col">≈ ${fmtUsd(b.actual_usd)}</td>` +
+      `<td class="num savings usd-secondary usd-col">${fmtUsd(tier)}</td>` +
+      `<td class="num savings usd-secondary usd-col">${fmtUsd(caveman)}</td>` +
+      `<td class="num savings usd-secondary usd-col">${fmtUsd(total)}</td>` +
       `<td class="num">${fmtPct(totalPct)}</td>` +
       `<td class="num savings tokens-col">${fmtTokens(outTokens)}</td>`;
   } else {
     tr.innerHTML =
       `<td class="label">${label}</td>` +
       `<td class="num">${fmtN(b.calls)}</td>` +
-      `<td class="num">${fmtUsd(opusBaseline)}</td>` +
-      `<td class="num">${fmtUsd(b.actual_usd)}</td>` +
-      `<td class="num savings">${fmtUsd(tier)}</td>` +
-      `<td class="num savings">${fmtUsd(caveman)}</td>` +
-      `<td class="num savings">${fmtUsd(total)}</td>` +
+      `<td class="num usd-col">${fmtUsd(opusBaseline)}</td>` +
+      `<td class="num usd-col">${fmtUsd(b.actual_usd)}</td>` +
+      `<td class="num savings usd-col">${fmtUsd(tier)}</td>` +
+      `<td class="num savings usd-col">${fmtUsd(caveman)}</td>` +
+      `<td class="num savings usd-col">${fmtUsd(total)}</td>` +
       `<td class="num">${fmtPct(totalPct)}</td>` +
       `<td class="num savings tokens-col">${fmtTokens(outTokens)}</td>`;
   }
@@ -803,7 +810,7 @@ function renderModes(by_mode){
     tr.innerHTML =
       `<td class="label">${label}</td>` +
       `<td class="num">${fmtN(b.calls)}</td>` +
-      `<td class="num savings">${fmtUsd(b.savings_usd)}</td>` +
+      `<td class="num savings usd-col">${fmtUsd(b.savings_usd)}</td>` +
       `<td class="num">${fmtPct(b.savings_pct)}</td>` +
       `<td class="num savings tokens-col">${fmtTokens(modeTokens)}</td>`;
     tbody.appendChild(tr);

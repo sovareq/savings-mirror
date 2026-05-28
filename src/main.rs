@@ -158,6 +158,7 @@ async fn api_combined() -> Json<Value> {
             let tier = c.cumulative.tier_savings_usd + s.totals.savings_usd;
             let caveman = c.cumulative.caveman_savings_usd;
             let total = tier + caveman;
+            let out_tokens_total = c.cumulative.out_tokens_total + s.totals.out_tokens_total;
             let total_pct = if if_opus_nc > 0.0 {
                 (total / if_opus_nc) * 100.0
             } else {
@@ -185,6 +186,7 @@ async fn api_combined() -> Json<Value> {
                 "tier_savings_pct":       tier_pct,
                 "caveman_savings_pct":    caveman_pct,
                 "total_savings_pct":      total_pct,
+                "out_tokens_total":       out_tokens_total,
                 // backwards-compat aliases:
                 "baseline_usd":           if_opus_nc,
                 "savings_usd":            total,
@@ -317,6 +319,7 @@ fn tier_to_bucket(t: &sovacount::TierBucket, label: &str) -> Value {
         "tier_savings_pct":       pct,
         "caveman_savings_pct":    0.0,
         "total_savings_pct":      pct,
+        "out_tokens_total":       t.out_tokens_total,
         // backwards-compat aliases:
         "baseline_usd":           t.baseline_opus_usd,
         "savings_usd":            t.savings_usd,

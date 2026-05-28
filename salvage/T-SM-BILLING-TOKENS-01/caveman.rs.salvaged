@@ -85,10 +85,6 @@ pub struct DailyBucket {
     pub savings_usd: f64,
     /// Alias for `total_savings_pct`.
     pub savings_pct: f64,
-
-    /// Totaal output-tokens van model-replies, gesommeerd uit Claude-Code transcripts.
-    #[serde(default)]
-    pub out_tokens_total: u64,
 }
 
 impl DailyBucket {
@@ -288,7 +284,6 @@ fn build_report_uncached() -> Result<CavemanReport> {
             day.if_opus_no_caveman_usd += if_opus_no_caveman_usd;
             day.tier_savings_usd += tier_savings_usd;
             day.caveman_savings_usd += caveman_savings_usd;
-            day.out_tokens_total += out_tokens;
 
             let mb = by_mode
                 .entry(mode.to_string())
@@ -302,7 +297,6 @@ fn build_report_uncached() -> Result<CavemanReport> {
             mb.if_opus_no_caveman_usd += if_opus_no_caveman_usd;
             mb.tier_savings_usd += tier_savings_usd;
             mb.caveman_savings_usd += caveman_savings_usd;
-            mb.out_tokens_total += out_tokens;
         }
     }
 
@@ -340,7 +334,6 @@ fn build_report_uncached() -> Result<CavemanReport> {
         cumulative.if_opus_no_caveman_usd += b.if_opus_no_caveman_usd;
         cumulative.tier_savings_usd += b.tier_savings_usd;
         cumulative.caveman_savings_usd += b.caveman_savings_usd;
-        cumulative.out_tokens_total += b.out_tokens_total;
         if d.num_days_from_ce() >= week_cut {
             last_7d.calls += b.calls;
             last_7d.actual_usd += b.actual_usd;
@@ -348,7 +341,6 @@ fn build_report_uncached() -> Result<CavemanReport> {
             last_7d.if_opus_no_caveman_usd += b.if_opus_no_caveman_usd;
             last_7d.tier_savings_usd += b.tier_savings_usd;
             last_7d.caveman_savings_usd += b.caveman_savings_usd;
-            last_7d.out_tokens_total += b.out_tokens_total;
         }
     }
     last_7d.finalise();
@@ -416,7 +408,6 @@ mod tests {
             if_opus_no_caveman_usd,
             tier_savings_usd: if_opus_usd - actual_usd,
             caveman_savings_usd: if_opus_no_caveman_usd - if_opus_usd,
-            out_tokens_total: out_tokens,
             ..Default::default()
         };
         b.finalise();
@@ -487,13 +478,5 @@ mod tests {
         assert!(approx(b.baseline_usd, b.if_opus_no_caveman_usd, 1e-12));
         assert!(approx(b.savings_usd, b.total_savings_usd, 1e-12));
         assert!(approx(b.savings_pct, b.total_savings_pct, 1e-12));
-    }
-
-    #[test]
-    fn out_tokens_total_is_set_from_sample_build() {
-        // A single 100k-token Haiku call → bucket.out_tokens_total == 100_000.
-        let b = single_call("claude-3-5-haiku", 100_000, "full");
-        assert_eq!(b.out_tokens_total, 100_000);
-        assert!(b.out_tokens_total > 0);
     }
 }

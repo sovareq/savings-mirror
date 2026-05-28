@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="nl" dir="ltr" translate="no" class="notranslate"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>caveman — besparingsdashboard</title>
+<meta name="google" content="notranslate">
+<meta name="google-translate-customization" content="false">
+<meta http-equiv="content-language" content="nl">
+<style>
+  :root {
+    --color-ink:           #2b1c10;
+    --color-ink-muted:     #5c4a36;
+    --color-ink-subtle:    #897560;
+    --color-surface:       #fffaf0;
+    --color-surface-muted: #f5ead5;
+    --color-surface-sunken:#ece0c8;
+    --color-surface-subtle:#faf4e3;
+    --color-border:        #d4c2a0;
+    --color-border-strong: #b89c70;
+    --color-accent:        #7a4e2d;
+    --color-accent-hover:  #5c3a22;
+    --color-accent-soft:   #a06e44;
+    --color-focus:         var(--color-accent);
+    --color-danger:        #a0522d;
+    --color-success:       #6b8e23;
+
+    --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --text-xs:   12px;
+    --text-sm:   14px;
+    --text-base: 16px;
+    --text-lg:   18px;
+    --text-2xl:  28px;
+    --text-3xl:  36px;
+
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-5:  20px;
+    --space-6:  24px;
+    --space-8:  32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    --border-thin: 1px solid var(--color-border);
+    --border-strong: 1px solid var(--color-border-strong);
+
+    --container-max: 960px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-ink:           #f3e9d2;
+      --color-ink-muted:     #c2b395;
+      --color-ink-subtle:    #8f8068;
+      --color-surface:       #1a130b;
+      --color-surface-muted: #221911;
+      --color-surface-sunken:#0f0a05;
+      --color-surface-subtle:#241a10;
+      --color-border:        #3a2c1c;
+      --color-border-strong: #5c4628;
+      --color-accent:        #c89870;
+      --color-accent-hover:  #e0b48a;
+      --color-accent-soft:   #a07a50;
+      --color-danger:        #d97a4c;
+      --color-success:       #9bb56a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    padding: var(--space-8) var(--space-6);
+    max-width: var(--container-max);
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-bottom: var(--space-5);
+    border-bottom: var(--border-thin);
+    margin-bottom: var(--space-8);
+  }
+
+  header h1 {
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  header .meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-ink-muted);
+  }
+
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-success);
+  }
+  .dot.err  { background: var(--color-danger); }
+  .dot.idle { background: var(--color-ink-subtle); }
+
+  section {
+    background: var(--color-surface-muted);
+    border: var(--border-thin);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+  }
+
+  section h2 {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin: 0 0 var(--space-4) 0;
+    color: var(--color-accent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  th, td {
+    text-align: left;
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    vertical-align: middle;
+  }
+
+  thead th {
+    font-weight: 600;
+    color: var(--color-ink-muted);
+    border-bottom: var(--border-thin);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+  }
+
+  tbody tr + tr td {
+    border-top: 1px dashed var(--color-border);
+  }
+
+  td.label {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--color-ink);
+    width: 16%;
+  }
+
+  td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+
+  td.num.savings {
+    color: var(--color-success);
+    font-weight: 600;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-4);
+  }
+
+  button {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-accent);
+    background: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  button:hover {
+    background: var(--color-accent);
+    color: var(--color-surface);
+  }
+  button.danger {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+  button.danger:hover {
+    background: var(--color-danger);
+    color: var(--color-surface);
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .note {
+    font-size: var(--text-sm);
+    color: var(--color-ink-muted);
+  }
+
+  .baseline-info {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-ink-subtle);
+    background: var(--color-surface-sunken);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  footer {
+    margin-top: var(--space-10);
+    padding-top: var(--space-5);
+    border-top: var(--border-thin);
+    font-size: var(--text-xs);
+    color: var(--color-ink-subtle);
+    text-align: center;
+  }
+
+  footer a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  footer a:hover {
+    text-decoration: underline;
+  }
+
+  /* Visibility is purely state-driven through body data-attrs so the
+     interval refresh can never overwrite a click-toggle's setting. */
+  body:not([data-show-sova="true"]) #sovacount-section,
+  body:not([data-show-sova="true"]) #combined-section {
+    display: none;
+  }
+  body[data-sovacount-down="true"] #toggle {
+    pointer-events: none;
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* --- Billing mode pill ------------------------------------------------ */
+  .mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-sunken);
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    user-select: none;
+    transition: transform 0.08s ease, filter 0.08s ease;
+  }
+  .mode-pill:hover { filter: brightness(1.06); }
+  .mode-pill:active { transform: translateY(1px); }
+  .mode-pill:focus-visible {
+    outline: 2px solid var(--color-accent, #3a6ea5);
+    outline-offset: 2px;
+  }
+  .mode-pill[data-override="true"]::after {
+    content: " 📌";
+    font-size: 0.85em;
+    margin-left: 2px;
+  }
+  body[data-billing-mode="subscription"] .mode-pill {
+    color: var(--color-success);
+    border-color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+  }
+  body[data-billing-mode="api"] .mode-pill {
+    color: #3a6ea5;
+    border-color: #3a6ea5;
+    background: color-mix(in srgb, #3a6ea5 10%, var(--color-surface));
+  }
+  @media (prefers-color-scheme: dark) {
+    body[data-billing-mode="api"] .mode-pill {
+      color: #8ab4e8;
+      border-color: #8ab4e8;
+      background: color-mix(in srgb, #8ab4e8 14%, var(--color-surface));
+    }
+  }
+
+  /* --- Headroom card ---------------------------------------------------- */
+  #headroom-section { display: none; }
+  body[data-billing-mode="subscription"] #headroom-section { display: block; }
+
+  .headroom-bar-wrap {
+    margin-bottom: var(--space-4);
+  }
+  .headroom-bar-wrap:last-child { margin-bottom: 0; }
+
+  .headroom-bar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-1);
+  }
+  .headroom-bar-head .pct {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+  .headroom-bar-track {
+    position: relative;
+    width: 100%;
+    height: 12px;
+    background: var(--color-surface-sunken);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+  }
+  .headroom-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--color-success);
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+  .headroom-bar-fill.amber { background: #c8901a; }
+  .headroom-bar-fill.red   { background: var(--color-danger); }
+
+  .headroom-bar-reset {
+    font-size: var(--text-xs);
+    color: var(--color-ink-subtle);
+    margin-top: var(--space-1);
+    font-family: var(--font-mono);
+  }
+  .headroom-warning {
+    font-size: var(--text-sm);
+    color: var(--color-danger);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface-subtle);
+    border-left: 3px solid var(--color-danger);
+    border-radius: var(--radius-sm);
+  }
+
+  /* --- Subscription disclaimer ------------------------------------------ */
+  .subscription-disclaimer { display: none; }
+  body[data-billing-mode="subscription"] .subscription-disclaimer {
+    display: block;
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-ink-muted);
+    background: var(--color-surface-subtle);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--color-accent-soft);
+    line-height: 1.5;
+  }
+</style>
+</head><body data-show-sova="false" data-sovacount-down="false" data-billing-mode="auto-undetected">
+
+<header>
+  <h1><span translate="no" class="notranslate">caveman</span></h1>
+  <div class="meta">
+    <span class="dot idle" id="status-dot"></span>
+    <span id="status">laden…</span>
+    <span class="mode-pill" id="mode-pill" title="modus wordt bepaald…" tabindex="0">
+      <span id="mode-pill-label" translate="no" class="notranslate">Auto-detect…</span>
+    </span>
+    <span class="baseline-info" id="baseline">basislijn: …</span>
+  </div>
+</header>
+
+<section id="headroom-section" aria-label="Headroom">
+  <h2><span translate="no" class="notranslate">Headroom</span></h2>
+  <div id="headroom-content">
+    <div class="headroom-bar-wrap" id="headroom-5h-wrap">
+      <div class="headroom-bar-head">
+        <span>5u-venster</span>
+        <span class="pct" id="headroom-5h-pct">—</span>
+      </div>
+      <div class="headroom-bar-track">
+        <div class="headroom-bar-fill" id="headroom-5h-fill"></div>
+      </div>
+      <div class="headroom-bar-reset" id="headroom-5h-reset">resets at —</div>
+    </div>
+    <div class="headroom-bar-wrap" id="headroom-7d-wrap">
+      <div class="headroom-bar-head">
+        <span>7d-venster</span>
+        <span class="pct" id="headroom-7d-pct">—</span>
+      </div>
+      <div class="headroom-bar-track">
+        <div class="headroom-bar-fill" id="headroom-7d-fill"></div>
+      </div>
+      <div class="headroom-bar-reset" id="headroom-7d-reset">resets at —</div>
+    </div>
+  </div>
+  <div id="headroom-warning" class="headroom-warning" style="display:none">
+    Headroom-data niet beschikbaar — er worden cache- of schattingwaarden gebruikt.
+  </div>
+</section>
+
+<section id="caveman-section">
+  <h2><span translate="no" class="notranslate">caveman</span>-besparing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>periode</th>
+        <th class="num">oproepen</th>
+        <th class="num">opus-baseline</th>
+        <th class="num">werkelijk</th>
+        <th class="num">tier-winst</th>
+        <th class="num">caveman-winst</th>
+        <th class="num">totaal-winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="caveman-table"></tbody>
+  </table>
+  <p class="note" translate="no">
+    tier-winst = real-gemeten (opus-prijs × tokens − werkelijke prijs × tokens).
+    caveman-winst = schatting via mode-benchmark + lengte-heuristiek (clamp 20–85%).
+    totaal = som beide. echte caveman-meting vereist controle-run zonder
+    <span translate="no" class="notranslate">caveman</span>.
+  </p>
+  <div class="subscription-disclaimer">
+    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+  </div>
+</section>
+
+<section id="sovacount-section">
+  <h2><span translate="no" class="notranslate">sovacount</span>-besparing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>periode</th>
+        <th class="num">oproepen</th>
+        <th class="num">opus-baseline</th>
+        <th class="num">werkelijk</th>
+        <th class="num">tier-winst</th>
+        <th class="num">caveman-winst</th>
+        <th class="num">totaal-winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="sovacount-table"></tbody>
+  </table>
+  <div class="subscription-disclaimer">
+    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+  </div>
+</section>
+
+<section id="combined-section">
+  <h2>samen</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>bron</th>
+        <th class="num">oproepen</th>
+        <th class="num">opus-baseline</th>
+        <th class="num">werkelijk</th>
+        <th class="num">tier-winst</th>
+        <th class="num">caveman-winst</th>
+        <th class="num">totaal-winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="combined-table"></tbody>
+  </table>
+  <div class="subscription-disclaimer">
+    &asymp; Anthropic list-prijs equivalent. Abonnementen betalen een vast maandelijks bedrag — deze bedragen tonen wat <span translate="no" class="notranslate">pay-per-token</span> API-gebruikers met dezelfde activiteit zouden uitgeven.
+  </div>
+</section>
+
+<section id="modes-section">
+  <h2>verdeling per modus</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>modus</th>
+        <th class="num">oproepen</th>
+        <th class="num">winst</th>
+        <th class="num">%</th>
+      </tr>
+    </thead>
+    <tbody id="modes-table"></tbody>
+  </table>
+  <p class="note" id="modes-empty" style="display:none">
+    geen modus-historiek nog &mdash; eerste prompt na deze build wordt geregistreerd.
+  </p>
+</section>
+
+<div class="toolbar">
+  <button id="toggle" translate="no" class="notranslate">+ toon sovacount</button>
+  <button id="wipe" class="danger notranslate" translate="no">wis caveman-cache</button>
+  <span class="note" id="sovacount-status"></span>
+</div>
+
+<footer>
+  <span translate="no" class="notranslate">caveman</span>-skill door
+  <a href="https://github.com/JuliusBrussee/caveman" translate="no" class="notranslate">@JuliusBrussee</a>
+  &middot; dashboard MIT &middot; alleen-lezen &middot; lokaal
+</footer>
+
+<script>
+// Visibility is owned by `document.body.dataset.showSova`. No JS-side mirror
+// variable so the interval refresh can never observe a half-updated state.
+function isSovaShown(){ return document.body.dataset.showSova === "true"; }
+function setSovaShown(b){ document.body.dataset.showSova = b ? "true" : "false"; }
+
+function fmtUsd(v){
+  if (v == null) return "—";
+  return "$" + v.toLocaleString("nl-BE", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+function fmtPct(v){
+  if (v == null) return "—";
+  return v.toLocaleString("nl-BE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+}
+function fmtN(v){
+  if (v == null) return "—";
+  return v.toLocaleString("nl-BE");
+}
+
+// --- Billing mode -----------------------------------------------------------
+// Allowed body[data-billing-mode] values: "api", "subscription", "auto-undetected"
+const MODE_LABEL = {
+  "api":              "API mode",
+  "subscription":     "Subscription mode",
+  "auto-undetected":  "Auto-detect…",
+  "auto":             "Auto-detect…"
+};
+
+const DETECTED_VIA_LABEL = {
+  "env":                       "via environment variable",
+  "env-forced":                "via SAVINGS_MIRROR_BILLING_MODE env",
+  "env-anthropic-api-key":     "via ANTHROPIC_API_KEY env",
+  "env-anthropic-auth-token":  "via ANTHROPIC_AUTH_TOKEN env",
+  "env-claude-code-oauth-token":"via CLAUDE_CODE_OAUTH_TOKEN env",
+  "keychain":                  "via macOS Keychain (OAuth)",
+  "file":                      "via credentials file",
+  "fallback":                  "via fallback heuristic",
+  "fallback-api":              "via fallback (no auth detected)",
+  "oauth-token":               "via OAuth token",
+  "oauth-fetch-failed":        "OAuth detected, usage fetch failed",
+  "oauth-token-missing":       "subscription pinned but no OAuth token found",
+  "combined-fallback":         "via /api/combined fast-path",
+  "ui-override":               "pinned via dashboard click (📌)"
+};
+
+// Click-cycle order for the mode pill:
+//   subscription → api → auto (clears override) → back to whatever auto-detect resolves to.
+// We do NOT cycle through "auto-undetected" because that's only a placeholder
+// before the first /api/billing response.
+const PILL_CYCLE = ["subscription", "api", "auto"];
+function nextModeInCycle(current){
+  // Treat anything not in the cycle (auto-undetected, unknown) as starting fresh.
+  const idx = PILL_CYCLE.indexOf(current);
+  if (idx === -1) return PILL_CYCLE[0];
+  return PILL_CYCLE[(idx + 1) % PILL_CYCLE.length];
+}
+
+function normalizeBillingMode(m){
+  if (m === "api" || m === "subscription") return m;
+  return "auto-undetected";
+}
+
+function setBillingMode(mode, detectedVia, errorMsg){
+  const norm = normalizeBillingMode(mode);
+  document.body.dataset.billingMode = norm;
+  const pill  = document.getElementById("mode-pill");
+  const label = document.getElementById("mode-pill-label");
+  if (!pill || !label) return;
+  label.textContent = MODE_LABEL[norm] || MODE_LABEL["auto-undetected"];
+  const detail = DETECTED_VIA_LABEL[detectedVia] || (detectedVia ? `detected via ${detectedVia}` : "modus nog niet vastgesteld");
+  const errPart = errorMsg ? ` — ${errorMsg}` : "";
+  pill.dataset.override = detectedVia === "ui-override" ? "true" : "false";
+  const clickHint = "\n\nKlik om te wisselen tussen Subscription / API / Auto-detect.";
+  pill.title = `${label.textContent} — ${detail}${errPart}${clickHint}`;
+}
+
+/// Send the requested override to the backend. `mode` is "api" |
+/// "subscription" | "auto" (where "auto" clears the override). Updates the
+/// pill immediately on success so the user gets sub-100ms feedback even
+/// before the next /api/billing poll. Logs to console on failure.
+async function setOverride(mode){
+  const body = mode === "auto" ? { mode: null } : { mode };
+  try {
+    const r = await fetch("/api/billing/override", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (d.ok !== true) throw new Error(d.error || "override failed");
+    // Backend echoes the resolved mode + detected_via post-override.
+    setBillingMode(d.mode, d.detected_via, null);
+    // Re-pull /api/billing so the headroom card (subscription mode) refreshes.
+    await loadBilling();
+  } catch (e) {
+    console.warn("setOverride failed:", e);
+    const pill = document.getElementById("mode-pill");
+    if (pill) {
+      pill.title = `${pill.title || ""}\n\n[ERROR: ${e.message || e}]`;
+    }
+  }
+}
+
+function renderHeadroom(usage){
+  const warn = document.getElementById("headroom-warning");
+  const content = document.getElementById("headroom-content");
+  if (!usage || (!usage.five_hour && !usage.seven_day)) {
+    if (warn) warn.style.display = "block";
+    if (content) content.style.display = "none";
+    return;
+  }
+  if (warn) warn.style.display = "none";
+  if (content) content.style.display = "";
+
+  const paint = (win, pctId, fillId, resetId) => {
+    const pctEl   = document.getElementById(pctId);
+    const fillEl  = document.getElementById(fillId);
+    const resetEl = document.getElementById(resetId);
+    if (!pctEl || !fillEl || !resetEl) return;
+    if (!win || typeof win.utilization !== "number") {
+      pctEl.textContent   = "—";
+      fillEl.style.width  = "0%";
+      fillEl.className    = "headroom-bar-fill";
+      resetEl.textContent = "resets at —";
+      return;
+    }
+    const pct = Math.max(0, Math.min(100, win.utilization));
+    pctEl.textContent = fmtPct(pct);
+    fillEl.style.width = pct + "%";
+    let cls = "headroom-bar-fill";
+    if (pct >= 90)      cls += " red";
+    else if (pct >= 70) cls += " amber";
+    fillEl.className = cls;
+    let resetTxt = "resets at —";
+    if (win.resets_at) {
+      try {
+        const d = new Date(win.resets_at);
+        if (!isNaN(d.getTime())) {
+          resetTxt = "resets at " + d.toLocaleString("nl-BE");
+        }
+      } catch(e) { /* keep dash */ }
+    }
+    resetEl.textContent = resetTxt;
+  };
+
+  paint(usage.five_hour, "headroom-5h-pct", "headroom-5h-fill", "headroom-5h-reset");
+  paint(usage.seven_day, "headroom-7d-pct", "headroom-7d-fill", "headroom-7d-reset");
+}
+
+async function loadBilling(){
+  try {
+    const r = await fetch("/api/billing");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    setBillingMode(d.mode, d.detected_via, d.error);
+    if (normalizeBillingMode(d.mode) === "subscription") {
+      renderHeadroom(d.usage);
+    }
+  } catch(e) {
+    // leave whatever the combined-payload signal gave us; only reset to
+    // auto-undetected if we have no prior mode yet.
+    if (!document.body.dataset.billingMode || document.body.dataset.billingMode === "auto-undetected") {
+      setBillingMode("auto-undetected", null, "billing endpoint unreachable");
+    }
+  }
+}
+
+function renderBucket(tbody, label, b){
+  if (!b) return;
+  // Prefer the new T-SM-REAL fields; fall back to legacy aliases when an
+  // older API consumer hits a still-mounted page or vice versa.
+  const opusBaseline = b.if_opus_no_caveman_usd ?? b.baseline_usd ?? 0;
+  const tier         = b.tier_savings_usd        ?? 0;
+  const caveman      = b.caveman_savings_usd     ?? 0;
+  const total        = b.total_savings_usd       ?? b.savings_usd ?? 0;
+  const totalPct     = b.total_savings_pct       ?? b.savings_pct ?? 0;
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    `<td class="label">${label}</td>` +
+    `<td class="num">${fmtN(b.calls)}</td>` +
+    `<td class="num">${fmtUsd(opusBaseline)}</td>` +
+    `<td class="num">${fmtUsd(b.actual_usd)}</td>` +
+    `<td class="num savings">${fmtUsd(tier)}</td>` +
+    `<td class="num savings">${fmtUsd(caveman)}</td>` +
+    `<td class="num savings">${fmtUsd(total)}</td>` +
+    `<td class="num">${fmtPct(totalPct)}</td>`;
+  tbody.appendChild(tr);
+}
+
+const MODE_ORDER  = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan-full", "wenyan-ultra"];
+const MODE_LABELS = {
+  "off":           "uit",
+  "lite":          "licht",
+  "full":          "vol",
+  "ultra":         "ultra",
+  "wenyan-lite":   "wenyan-licht",
+  "wenyan":        "wenyan-vol",
+  "wenyan-full":   "wenyan-vol",
+  "wenyan-ultra":  "wenyan-ultra"
+};
+
+function renderModes(by_mode){
+  const tbody = document.getElementById("modes-table");
+  const empty = document.getElementById("modes-empty");
+  tbody.innerHTML = "";
+
+  if (!by_mode || typeof by_mode !== "object") {
+    empty.style.display = "block";
+    return;
+  }
+
+  // Stable order: known modes first, unknowns appended alphabetically.
+  const seen = new Set();
+  const ordered = [];
+  for (const k of MODE_ORDER) {
+    if (by_mode[k]) { ordered.push(k); seen.add(k); }
+  }
+  for (const k of Object.keys(by_mode).sort()) {
+    if (!seen.has(k)) ordered.push(k);
+  }
+
+  let rendered = 0;
+  for (const mode of ordered) {
+    const b = by_mode[mode];
+    if (!b || !b.calls || b.calls === 0) continue;
+    const label = MODE_LABELS[mode] || mode;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td class="label">${label}</td>` +
+      `<td class="num">${fmtN(b.calls)}</td>` +
+      `<td class="num savings">${fmtUsd(b.savings_usd)}</td>` +
+      `<td class="num">${fmtPct(b.savings_pct)}</td>`;
+    tbody.appendChild(tr);
+    rendered++;
+  }
+  empty.style.display = rendered === 0 ? "block" : "none";
+}
+
+async function refresh(){
+  try {
+    const r = await fetch("/api/combined");
+    const d = await r.json();
+
+    // Fast-path billing-mode signal (every 15s). Doesn't replace loadBilling,
+    // just keeps the pill fresh between 5-min /api/billing polls.
+    if (typeof d.billing_mode === "string") {
+      const cur = document.body.dataset.billingMode;
+      const next = normalizeBillingMode(d.billing_mode);
+      if (cur !== next) {
+        // Preserve detected_via in tooltip if loadBilling already set it;
+        // otherwise mark provenance as "combined" so it's not blank.
+        setBillingMode(d.billing_mode, "combined-fallback", null);
+      }
+    }
+
+    const ct = document.getElementById("caveman-table");
+    ct.innerHTML = "";
+    if (d.caveman) {
+      renderBucket(ct, "vandaag",    d.caveman.today);
+      renderBucket(ct, "7 dagen",    d.caveman.last_7d);
+      renderBucket(ct, "cumulatief", d.caveman.cumulative);
+    }
+
+    // by_mode lives on /api/caveman; /api/combined only forwards bucket trio.
+    try {
+      const r2 = await fetch("/api/caveman");
+      const d2 = await r2.json();
+      renderModes(d2.by_mode);
+    } catch (e) { renderModes(null); }
+
+    // Robust check: accept only object payloads that lack an `error` field.
+    const sovaOk = d.sovacount && typeof d.sovacount === "object" && !d.sovacount.error;
+    document.body.dataset.sovacountDown = sovaOk ? "false" : "true";
+    document.getElementById("sovacount-status").textContent =
+      sovaOk ? "" : "sovacount niet bereikbaar op :8989";
+
+    // Always populate sovacount + combined tables. CSS controls visibility via
+    // `body[data-show-sova]`, so the refresh interval never overrides a click.
+    if (sovaOk) {
+      const st = document.getElementById("sovacount-table");
+      st.innerHTML = "";
+      renderBucket(st, "vandaag",    d.sovacount.today);
+      renderBucket(st, "cumulatief", d.sovacount.cumulative);
+
+      const cb = document.getElementById("combined-table");
+      cb.innerHTML = "";
+      renderBucket(cb, "alle bronnen", d.combined);
+    }
+
+    document.getElementById("status").textContent = "actief";
+    document.getElementById("status-dot").className = "dot";
+
+  } catch(e) {
+    document.getElementById("status").textContent = "fout";
+    document.getElementById("status-dot").className = "dot err";
+  }
+}
+
+async function loadBaseline(){
+  try {
+    const r = await fetch("/api/caveman");
+    // best-effort: cumulative.date gives the period range, baseline file separately
+    const r2 = await fetch("/api/reset", { method: "HEAD" }).catch(() => null);
+    // Show the moment of last reset via a quick GET-marker — fall back to "nu".
+  } catch(e) { /* ignore */ }
+}
+
+// Mode pill — click cycles subscription → api → auto (clear override) →
+// back to whatever auto-detect resolves to.
+{
+  const pill = document.getElementById("mode-pill");
+  if (pill) {
+    const handler = async () => {
+      const cur = document.body.dataset.billingMode || "auto-undetected";
+      const next = nextModeInCycle(cur);
+      await setOverride(next);
+    };
+    pill.addEventListener("click", handler);
+    pill.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handler();
+      }
+    });
+  }
+}
+
+document.getElementById("toggle").addEventListener("click", async () => {
+  // CSS makes the button non-interactive when sovacount is down (via
+  // `body[data-sovacount-down]`), so we don't need a JS `disabled` check —
+  // pointer-events:none already short-circuits the click. Still: be defensive.
+  if (document.body.dataset.sovacountDown === "true") return;
+  const next = !isSovaShown();
+  setSovaShown(next);
+  document.getElementById("toggle").textContent =
+    next ? "− verberg sovacount" : "+ toon sovacount";
+  await refresh();
+});
+
+document.getElementById("wipe").addEventListener("click", async () => {
+  if (!confirm("caveman-cache wissen?\n\nDit reset zowel besparing-basislijn als modus-historiek.\nsovacount blijft ongewijzigd.")) return;
+  const r = await fetch("/api/reset", { method: "POST" });
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById("baseline").textContent =
+      "basislijn: " + new Date(d.baseline).toLocaleString("nl-BE");
+    refresh();
+  } else {
+    alert("fout bij wissen: " + (d.error || "onbekend"));
+  }
+});
+
+(async () => {
+  // initial baseline display: read once via a no-op POST? safer: hint via reset HEAD
+  try {
+    const r = await fetch("/api/caveman");
+    const d = await r.json();
+    document.getElementById("baseline").textContent =
+      "basislijn actief";
+  } catch(e) { /* ignore */ }
+  loadBilling();
+  refresh();
+})();
+
+setInterval(refresh, 15000);
+// /api/billing wraps an upstream OAuth call — poll it sparingly.
+setInterval(loadBilling, 5 * 60 * 1000);
+</script>
+</body></html>

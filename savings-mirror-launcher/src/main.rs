@@ -17,6 +17,7 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as _;
+use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -129,9 +130,38 @@ fn log_line(state: &mut State, msg: &str) {
     }
 }
 
+/// Cheap TCP probe: did someone already bind `127.0.0.1:port`? Used by
+/// `start_runtime` to attach to a runtime that another process started
+/// (Claude Code SessionStart hook, a previous launcher session that lost its
+/// child handle on quit, a developer running `cargo run` in a terminal, etc.)
+/// rather than blindly spawning a duplicate and hitting `Address already in
+/// use` on bind.
+fn dashboard_port_alive(port: u16) -> bool {
+    let addr = match format!("127.0.0.1:{port}").parse() {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok()
+}
+
 fn start_runtime(state: &mut State) -> Result<()> {
     if state.child.is_some() {
-        log_line(state, "start_runtime: already running");
+        log_line(state, "start_runtime: already running (we own the child)");
+        return Ok(());
+    }
+    // External runtime detection — if something is already serving on
+    // DASHBOARD_PORT (session-hook, leftover process, dev terminal), don't
+    // spawn a duplicate. Mark as Running and let menu items / dashboard
+    // links continue to work. Stop button becomes a no-op for externally-
+    // owned runtimes; that limitation is documented in the menu tooltip.
+    if dashboard_port_alive(DASHBOARD_PORT) {
+        log_line(
+            state,
+            &format!(
+                "start_runtime: external runtime detected on :{DASHBOARD_PORT} — attaching, not spawning"
+            ),
+        );
+        state.last_status = Status::Running;
         return Ok(());
     }
     let bin = resolve_runtime_binary()?;
@@ -185,9 +215,18 @@ fn open_dashboard(state: &mut State) {
 
 /// Poll the child to detect unexpected exits. Returns the new status if it
 /// changed since `state.last_status`.
+///
+/// When we don't own a child handle (attached-mode, see `start_runtime`),
+/// fall back to a port probe so the menu stays accurate.
 fn poll_status(state: &mut State) -> Option<Status> {
     let new = match state.child.as_mut() {
-        None => Status::Stopped,
+        None => {
+            if dashboard_port_alive(DASHBOARD_PORT) {
+                Status::Running
+            } else {
+                Status::Stopped
+            }
+        }
         Some(c) => match c.try_wait() {
             Ok(Some(s)) => {
                 log_line(
@@ -195,7 +234,14 @@ fn poll_status(state: &mut State) -> Option<Status> {
                     &format!("poll_status: child exited (status={s}) — marking crashed"),
                 );
                 state.child = None;
-                Status::Crashed
+                // If something else is still serving on the port (e.g. the
+                // session-hook respawned faster than we polled), prefer
+                // Running over the alarming "Crashed" label.
+                if dashboard_port_alive(DASHBOARD_PORT) {
+                    Status::Running
+                } else {
+                    Status::Crashed
+                }
             }
             Ok(None) => Status::Running,
             Err(_) => Status::Running,
@@ -272,7 +318,10 @@ fn main() -> Result<()> {
         }
     };
     if !instance.is_single() {
-        write_trace(&mut startup_log, "another instance running — opening dashboard");
+        write_trace(
+            &mut startup_log,
+            "another instance running — opening dashboard",
+        );
         let url = format!("http://127.0.0.1:{DASHBOARD_PORT}");
         let _ = open::that(&url);
         return Ok(());
